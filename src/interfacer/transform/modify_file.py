@@ -5,13 +5,13 @@ from pathlib import Path
 import libcst as cst
 
 from ..config import Config
-from .transformer import Transformer
+from .type_add_transformer import TypeAddTransformer
 
 
 def modify_file(filepath: Path, config: Config) -> int:
     code = filepath.read_text()
     module = cst.parse_module(code)
-    transformer = Transformer(module, config)
+    transformer = TypeAddTransformer(module, config)
     new_code = module.visit(transformer).code
     if new_code != code:
         filepath.write_text(new_code)

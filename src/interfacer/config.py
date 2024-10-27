@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Type, Optional
+from typing import Optional
+from typing import Type
 
+import toml
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic import Field
@@ -15,6 +17,7 @@ load_dotenv()
 class Config(BaseModel):
     _root: Path = Path(__file__).parent
     pos_args: list[str] = Field(default_factory=list)
+    mypy_folder: Path = _root / ".temp"
     config_file: Optional[Path] = None
 
 
@@ -41,15 +44,15 @@ def parse_arguments(config_class: Type[Config]):
 
 def create_config_with_args(config_class: Type[Config], args) -> Config:
     arg_dict = {
-        name: getattr(args, name) for name in config_class.model_fields if hasattr(args, name)
+        name: getattr(args, name)
+        for name in config_class.model_fields
+        if hasattr(args, name)
     }
-    if (
-        arg_dict.get("config_file")
-        and Path(arg_dict["config_file"]).exists()
-    ):
+    if arg_dict.get("config_file") and Path(arg_dict["config_file"]).exists():
         config = config_class(
             **{
-                **arg_dict, **toml.load(arg_dict.get("config_file")),
+                **arg_dict,
+                **toml.load(arg_dict.get("config_file")),
             }
         )
     else:

@@ -18,9 +18,14 @@ class Transformer(cst.CSTTransformer):
     def _get_path_attrs(self, elem, attrs: Sequence[str]):
         current_elem = elem
         for attr in attrs:
-            if not hasattr(current_elem, attr):
-                return
-            current_elem = getattr(current_elem, attr)
+            if isinstance(attr, int):
+                if len(current_elem) <= attr:
+                    return
+                current_elem = current_elem[attr]
+            else:
+                if not hasattr(current_elem, attr):
+                    return
+                current_elem = getattr(current_elem, attr)
         return current_elem
 
     def _set_path_attrs(self, elem, attrs: Sequence[str], **kwargs):

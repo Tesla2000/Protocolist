@@ -13,6 +13,9 @@ python-dotenv = "^1.0.1"
 pydantic = "^2.8.2"
 libcst = "^1.4.0"
 toml = "^0.10.2"
+pytype = "^2024.10.11"
+mypy = "^1.13.0"
+more-itertools = "^10.5.0"
 
 
 [build-system]
