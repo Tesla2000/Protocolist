@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.8.0
+    hooks:
+      - id: black
+        args: ["--preview", "--line-length", "79"]
+  - repo: https://github.com/asottile/reorder-python-imports
+    rev: v3.13.0
+    hooks:
+      - id: reorder-python-imports
+        args: [--py37-plus, --add-import, 'from __future__ import annotations']
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.3.1
+    hooks:
+      - id: autoflake
+        args: [ --remove-all-unused-imports, --in-place ]
+  - repo: https://github.com/Tesla2000/suppress-lenght-check-import
+    rev: '0.1.1'
+    hooks:
+      - id: add-noqa-to-import
+  - repo: https://github.com/pycqa/flake8
+    rev: '7.1.1'
+    hooks:
+      - id: flake8
+        args: [ "--ignore=E203,W503" ]
+  - repo: https://github.com/Tesla2000/AutodocRemote
+    rev: '0.1.1'
+    hooks:
+      - id: autodocremote
+        stages: [push]
+default_stages: [commit]

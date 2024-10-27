@@ -1,0 +1,8 @@
+/executor.py
+/sandbox.py
+/.idea
+/.env
+/.venv
+/.vscode
+*__pycache__
+/docs/build/

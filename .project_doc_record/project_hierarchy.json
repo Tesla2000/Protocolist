@@ -1,0 +1,240 @@
+{
+  "main.py": [
+    {
+      "type": "FunctionDef",
+      "name": "main",
+      "md_content": [
+        "**main**: The function of main is to parse arguments based on the Config class, create a configuration instance with the parsed arguments, and print the configuration.\n\n**parameters**:\n- No explicit parameters are passed directly to the main function. The parameters are implicitly used within the function.\n\n**Code Description**:\nThe main function first calls the parse_arguments function with the Config class to obtain parsed arguments. It then utilizes these arguments to create a configuration instance by calling the create_config_with_args function with the Config class and the parsed arguments. Finally, the function prints the created configuration instance.\n\nThe main function serves as the entry point for configuring and initializing the application settings based on the provided configuration class. By sequentially calling the parse_arguments and create_config_with_args functions, the main function orchestrates the setup of the configuration instance and displays it for further usage within the application.\n\n**Note**:\nDevelopers using the main function should ensure that the Config class is correctly defined and imported to enable the parsing and creation of configuration instances. The main function provides a structured approach to handling configuration setup and can be extended to incorporate additional functionalities or actions based on the parsed configuration."
+      ],
+      "code_start_line": 8,
+      "code_end_line": 11,
+      "params": [],
+      "have_return": false,
+      "code_content": "def main():\n    args = parse_arguments(Config)\n    config = create_config_with_args(Config, args)\n    print(config)\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [
+        "src/config.py/Config",
+        "src/config.py/parse_arguments",
+        "src/config.py/create_config_with_args"
+      ],
+      "special_reference_type": [
+        false,
+        false,
+        false
+      ]
+    }
+  ],
+  "sandbox.py": [],
+  "_add_markdowns.py": [
+    {
+      "type": "FunctionDef",
+      "name": "add_markdowns",
+      "md_content": [
+        "**add_markdowns**: The function of add_markdowns is to add references to Markdown files in specified reStructuredText files.\n\n**parameters**:\n- markdown_file_path: A Path object representing the path to the Markdown file.\n- source_path: A Path object representing the source directory containing reStructuredText and Markdown files.\n\n**Code Description**:\nThe add_markdowns function first defines an inner function _conv2ref, which converts the Markdown file path to a relative reference. It then sets the source_path to the \"docs/source\" directory. The function iterates over all .rst files in the source_path, excluding \"index.rst\" and \"modules.rst\". For each file, it reads the content, splits it based on the additional_documents_header, and retrieves the content before and after the header. It determines the documentation path based on the file name and searches for Markdown files in the corresponding directory. The function then generates additional_docs by mapping the _conv2ref function to the Markdown files, formats the updated content with the additional documents header and the references to Markdown files, and writes the modified content back to the file.\n\n**Note**:\n- Ensure that the additional_documents_header is correctly defined before using this function.\n- Make sure that the source_path directory structure matches the expected layout for referencing Markdown files.\n\n**Output Example**:\nIf the original content of a .rst file is:\n```\nSome content here.\n.. additional_documents_header\n```\nand there are Markdown files \"file1.md\" and \"file2.md\" in the \"docs/source/subdirectory\" directory, the updated content after running add_markdowns may look like:\n```\nSome content here.\n.. additional_documents_header\n   file1\n   file2\n```",
+        "**add_markdowns**: The function of add_markdowns is to add references to Markdown files in specified reStructuredText files.\n\n**parameters**:\n- markdown_file_path: A Path object representing the path to the Markdown file.\n- source_path: A Path object representing the source directory containing the reStructuredText files.\n\n**Code Description**:\nThe add_markdowns function first defines an inner function _conv2ref, which converts the path of a Markdown file to a relative reference. It then sets the source_path to the \"docs/source\" directory. The function iterates over the reStructuredText files in the source_path, reads the content of each file, and locates a specific header within the content. It then extracts the content before and after the header, determines the path for the documentation, finds all Markdown files in that path, converts their paths to references using _conv2ref, and appends these references to the file content. Finally, it writes the updated content back to the file.\n\n**Note**:\n- This function assumes a specific directory structure where Markdown files are located within subdirectories corresponding to the reStructuredText files.\n- Ensure that the additional_documents_header variable is defined and contains the header used to locate the insertion point for the Markdown file references.\n\n**Output Example**:\nIf the content of a reStructuredText file before modification is:\n```\nSome content before\n.. additional_documents_header\n\nSome content after\n```\n\nAfter running add_markdowns, the content will be updated to include Markdown file references:\n```\nSome content before\n.. additional_documents_header\n\n   path/to/markdown/file1\n   path/to/markdown/file2\n\nSome content after\n```"
+      ],
+      "code_start_line": 13,
+      "code_end_line": 32,
+      "params": [],
+      "have_return": true,
+      "code_content": "def add_markdowns():\n    def _conv2ref(markdown_file_path: Path) -> str:\n        return str(markdown_file_path.relative_to(source_path).with_suffix(\"\"))\n\n    source_path = Path(\"docs/source\")\n    for file in source_path.glob(\"*.rst\"):\n        if file.name in (\"index.rst\", \"modules.rst\"):\n            continue\n        content = file.read_text()\n        before, _, after = content.rpartition(additional_documents_header)\n        before = (before or after).rstrip()\n        documentation_path = \"/\".join(file.name.split(\".\")[:-1])\n        markdown_files = source_path.joinpath(documentation_path).rglob(\"*.md\")\n        indent = 3 * \" \"\n        additional_docs = f\"\\n{indent}\".join(map(_conv2ref, markdown_files))\n        file.write_text(\n            \"{}\\n{}\\n\\n{}{}\\n\".format(\n                before, additional_documents_header, indent, additional_docs\n            )\n        )\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [],
+      "special_reference_type": []
+    },
+    {
+      "type": "FunctionDef",
+      "name": "_conv2ref",
+      "md_content": [
+        "**_conv2ref**: The function of _conv2ref is to convert the input markdown file path to a relative path from a specified source path without a file extension.\n\n**parameters**:\n- markdown_file_path: The path to the markdown file.\n  \n**Code Description**:\nThe _conv2ref function takes a markdown file path as input and returns the relative path of the file from a specified source path without the file extension. It uses the relative_to method to get the relative path from the source path and the with_suffix method to remove the file extension.\n\n**Note**:\nEnsure that the source_path variable is defined before calling this function to get the correct relative path.\n\n**Output Example**:\nIf markdown_file_path = \"/path/to/file/example.md\" and source_path = \"/path/to\", the function will return \"file/example\"."
+      ],
+      "code_start_line": 14,
+      "code_end_line": 15,
+      "params": [
+        "markdown_file_path"
+      ],
+      "have_return": true,
+      "code_content": "    def _conv2ref(markdown_file_path: Path) -> str:\n        return str(markdown_file_path.relative_to(source_path).with_suffix(\"\"))\n",
+      "name_column": 8,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [],
+      "special_reference_type": []
+    }
+  ],
+  "src/config.py": [
+    {
+      "type": "ClassDef",
+      "name": "Config",
+      "md_content": [
+        "**Config**: The function of Config is to define a configuration class that inherits from the BaseModel class and sets the _root attribute to the parent directory of the current file.\n\n**attributes**:\n- _root: Path = Path(__file__).parent\n\n**Code Description**: The Config class is a subclass of the BaseModel class. It initializes the _root attribute with the parent directory of the current file. This attribute can be used to store the path to the configuration file or directory.\n\nThe Config class plays a crucial role in defining the configuration structure for the application. By inheriting from the BaseModel class, it inherits functionalities related to data modeling. The _root attribute, initialized with the parent directory of the current file, provides a starting point for defining paths or locations within the configuration.\n\nIn the project, the Config class is utilized by the main function in the main.py file. The main function parses arguments based on the Config class, creates a configuration instance using the parsed arguments, and prints the resulting configuration. This demonstrates the Config class's role in setting up and managing application configurations.\n\n**Note**: Developers should ensure that the Config class is correctly defined and imported when working with configuration settings. The _root attribute can be leveraged to establish paths within the configuration. The interaction between the Config class and the main function showcases how configuration setup can be orchestrated and utilized within the application."
+      ],
+      "code_start_line": 14,
+      "code_end_line": 15,
+      "params": [],
+      "have_return": false,
+      "code_content": "class Config(BaseModel):\n    _root: Path = Path(__file__).parent\n",
+      "name_column": 6,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "main.py",
+        "main.py/main",
+        "src/config.py/parse_arguments",
+        "src/config.py/create_config_with_args"
+      ],
+      "reference_who": [],
+      "special_reference_type": []
+    },
+    {
+      "type": "FunctionDef",
+      "name": "parse_arguments",
+      "md_content": [
+        "**parse_arguments**: The function of parse_arguments is to parse arguments based on the provided configuration class and return the parsed arguments.\n\n**parameters**:\n- config_class: Type[Config] - The configuration class used to define the structure of the arguments.\n\n**Code Description**:\nThe parse_arguments function takes a configuration class as input and creates a CustomArgumentParser instance. It then iterates over the model fields of the configuration class, excluding those starting with '_', and adds arguments to the parser based on the field names, types, defaults, and help messages. Finally, the function parses the arguments and returns the result.\n\nThis function plays a crucial role in handling argument parsing for configuration settings within the application. By dynamically adding arguments based on the configuration class attributes, it provides a flexible and structured approach to defining and processing command-line arguments.\n\nIn the project, the parse_arguments function is called within the main function in the main.py file. By passing the Config class to parse_arguments, the main function obtains parsed arguments that are used to create a configuration instance. This demonstrates the integration of argument parsing functionality with the configuration setup process in the application.\n\n**Note**:\nDevelopers utilizing the parse_arguments function should ensure that the provided configuration class defines the necessary model fields for argument parsing. It is essential to follow a consistent naming convention for model fields to align with the expected command-line argument format.\n\n**Output Example**:\nAn example output of the parse_arguments function would be a Namespace object containing the parsed arguments ready for further processing within the application."
+      ],
+      "code_start_line": 18,
+      "code_end_line": 33,
+      "params": [
+        "config_class"
+      ],
+      "have_return": true,
+      "code_content": "def parse_arguments(config_class: Type[Config]):\n    parser = CustomArgumentParser(\n        description=\"Configure the application settings.\"\n    )\n\n    for name, value in config_class.model_fields.items():\n        if name.startswith(\"_\"):\n            continue\n        parser.add_argument(\n            f\"--{name}\",\n            type=value.annotation,\n            default=value.default,\n            help=f\"Default: {value}\",\n        )\n\n    return parser.parse_args()\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "main.py",
+        "main.py/main"
+      ],
+      "reference_who": [
+        "src/config.py/Config",
+        "src/custom_argument_parser.py/CustomArgumentParser",
+        "src/custom_argument_parser.py/CustomArgumentParser/add_argument"
+      ],
+      "special_reference_type": [
+        true,
+        false,
+        false
+      ]
+    },
+    {
+      "type": "FunctionDef",
+      "name": "create_config_with_args",
+      "md_content": [
+        "**create_config_with_args**: The function of create_config_with_args is to instantiate a configuration object based on the provided configuration class and arguments, ensuring the existence of specified paths within the configuration.\n\n**parameters**:\n- config_class: Type[Config] - The configuration class used to create the configuration object.\n- args - The arguments used to populate the configuration object.\n\n**Code Description**:\nThe create_config_with_args function takes a configuration class and arguments as input. It creates a new instance of the configuration class by populating the instance attributes with values from the provided arguments. Additionally, it checks for specific attributes within the configuration object that represent paths. If a path attribute is identified and does not exist, the function creates the path.\n\nThe function iterates over the model fields of the configuration class to set the corresponding values from the arguments. It then checks each attribute to determine if it represents a Path, ensuring that the path exists by creating it if it does not.\n\nThe utilization of this function ensures that a properly configured instance of the specified configuration class is created, with necessary paths initialized for further application usage.\n\n**Note**:\nDevelopers should ensure that the configuration class and arguments are correctly provided to the create_config_with_args function to instantiate the configuration object successfully. It is essential to define the configuration class with appropriate model fields representing paths that might need to be created during configuration instantiation.\n\n**Output Example**:\n```\nConfig(_root=PosixPath('/path/to/root'))\n```"
+      ],
+      "code_start_line": 36,
+      "code_end_line": 49,
+      "params": [
+        "config_class",
+        "args"
+      ],
+      "have_return": true,
+      "code_content": "def create_config_with_args(config_class: Type[Config], args) -> Config:\n    \"\"\"\"\"\"\n    config = config_class(\n        **{name: getattr(args, name) for name in config_class.model_fields}\n    )\n    for variable in config.model_fields:\n        value = getattr(config, variable)\n        if (\n            isinstance(value, Path)\n            and value.suffix == \"\"\n            and not value.exists()\n        ):\n            value.mkdir(parents=True)\n    return config\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "main.py",
+        "main.py/main"
+      ],
+      "reference_who": [
+        "src/config.py/Config"
+      ],
+      "special_reference_type": [
+        true
+      ]
+    }
+  ],
+  "src/__init__.py": [
+    {
+      "type": "FunctionDef",
+      "name": "import_python",
+      "md_content": [
+        "**import_python**: The function of import_python is to recursively import Python modules from a specified root directory.\n\n**parameters**:\n- root: The root directory path from which to start importing Python modules.\n\n**Code Description**:\nThe import_python function takes a root directory path as input and iterates through all files and subdirectories within the root directory. It skips certain directories such as \"__init__.py\", \"pycache\", and \"__pycache__\". For each file encountered, it determines the relative path, constructs the module path, imports the module, and yields the module name. If a subdirectory is encountered, the function recursively calls itself to import modules from that subdirectory.\n\n**Note**:\n- This function is useful for dynamically importing Python modules from a specified directory, which can be helpful for modularizing code and improving code organization.\n- Ensure that the root directory provided contains valid Python modules to import, as the function relies on the presence of Python files for importing."
+      ],
+      "code_start_line": 7,
+      "code_end_line": 18,
+      "params": [
+        "root"
+      ],
+      "have_return": false,
+      "code_content": "def import_python(root: Path):\n    for module_path in root.iterdir():\n        if module_path.name in (\"__init__.py\", \"pycache\", \"__pycache__\"):\n            continue\n        if module_path.is_file():\n            relative_path = module_path.relative_to(Path(__file__).parent)\n            subfolders = \"\".join(map(\".{}\".format, relative_path.parts[:-1]))\n            str_path = module_path.with_suffix(\"\").name\n            import_module(\".\" + str_path, __name__ + subfolders)\n            yield module_path.with_suffix(\"\").name\n            continue\n        yield from import_python(module_path)\n",
+      "name_column": 4,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [],
+      "reference_who": [],
+      "special_reference_type": []
+    }
+  ],
+  "src/custom_argument_parser.py": [
+    {
+      "type": "ClassDef",
+      "name": "CustomArgumentParser",
+      "md_content": [
+        "**CustomArgumentParser**: The function of CustomArgumentParser is to extend the functionality of the argparse.ArgumentParser class by customizing the behavior of adding arguments.\n\n**attributes**:\n- add_argument: A method that customizes the behavior of adding arguments by checking if the argument type is a boolean and converting it accordingly.\n- _str2bool: A method that converts a string representation of a boolean value to a boolean type.\n\n**Code Description**:\nThe CustomArgumentParser class extends the argparse.ArgumentParser class and overrides the add_argument method to handle boolean arguments more effectively. When adding an argument, if the argument type is a boolean, it converts the string representation of the boolean value to a boolean type using the _str2bool method. The _str2bool method checks if the input string represents a boolean value and converts it accordingly.\n\nIn the project, the CustomArgumentParser class is utilized in the parse_arguments function defined in src/config.py. The parse_arguments function takes a config_class parameter, creates an instance of CustomArgumentParser, adds arguments based on the fields of the config_class, and then parses the arguments.\n\n**Note**:\nDevelopers using the CustomArgumentParser class should be aware of the custom behavior implemented for boolean arguments and ensure that the input values are compatible with the conversion logic provided.\n\n**Output Example**:\nIf a boolean argument \"--enable_feature\" with a value of \"true\" is added using CustomArgumentParser, it will be converted to a boolean type True during parsing."
+      ],
+      "code_start_line": 6,
+      "code_end_line": 29,
+      "params": [],
+      "have_return": true,
+      "code_content": "class CustomArgumentParser(argparse.ArgumentParser):\n    def add_argument(\n        self,\n        *args,\n        **kwargs,\n    ):\n        if kwargs.get(\"type\") is bool:\n            kwargs[\"type\"] = self._str2bool\n        super().add_argument(\n            *args,\n            **kwargs,\n        )\n\n    def _str2bool(self, v):\n        if isinstance(v, bool):\n            return v\n        if v.lower() in (\"yes\", \"true\", \"t\", \"y\", \"1\"):\n            return True\n        elif v.lower() in (\"no\", \"false\", \"f\", \"n\", \"0\"):\n            return False\n        else:\n            raise argparse.ArgumentTypeError(\n                f\"Boolean value expected got {v}.\"\n            )\n",
+      "name_column": 6,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "src/config.py",
+        "src/config.py/parse_arguments"
+      ],
+      "reference_who": [],
+      "special_reference_type": []
+    },
+    {
+      "type": "FunctionDef",
+      "name": "add_argument",
+      "md_content": [
+        "**add_argument**: The function of add_argument is to handle the addition of arguments to the argument parser, specifically converting string representations of boolean values to boolean types when the argument type is bool.\n\n**parameters**:\n- self: The instance of the CustomArgumentParser class.\n- *args: Variable length argument list.\n- **kwargs: Arbitrary keyword arguments.\n\n**Code Description**: \nThe add_argument function first checks if the type of the argument is bool. If it is, the function utilizes the _str2bool method from the CustomArgumentParser class to convert the string representation to a boolean value before adding the argument using the super() method. This approach ensures that boolean type arguments are correctly processed and added to the argument parser.\n\nThe _str2bool method is responsible for converting string representations of boolean values to boolean types. It checks if the input value is already a boolean and converts strings like \"yes\", \"true\", \"t\", \"y\", \"1\" to True, and strings like \"no\", \"false\", \"f\", \"n\", \"0\" to False. If the input value does not match any of these, an ArgumentTypeError is raised to indicate an invalid boolean value.\n\nThe add_argument function plays a crucial role in the CustomArgumentParser class by facilitating the correct handling of boolean type arguments during the argument addition process. By utilizing the _str2bool method, it ensures that the arguments are appropriately converted and added to the argument parser, enhancing the overall functionality and usability of the CustomArgumentParser class.\n\n**Note**: Developers using the add_argument function should ensure that the input string represents a valid boolean value to prevent errors and ensure the accurate processing of boolean type arguments."
+      ],
+      "code_start_line": 7,
+      "code_end_line": 17,
+      "params": [
+        "self"
+      ],
+      "have_return": false,
+      "code_content": "    def add_argument(\n        self,\n        *args,\n        **kwargs,\n    ):\n        if kwargs.get(\"type\") is bool:\n            kwargs[\"type\"] = self._str2bool\n        super().add_argument(\n            *args,\n            **kwargs,\n        )\n",
+      "name_column": 8,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "src/config.py/parse_arguments"
+      ],
+      "reference_who": [
+        "src/custom_argument_parser.py/CustomArgumentParser/_str2bool"
+      ],
+      "special_reference_type": [
+        false
+      ]
+    },
+    {
+      "type": "FunctionDef",
+      "name": "_str2bool",
+      "md_content": [
+        "**_str2bool**: The function of _str2bool is to convert a string representation of a boolean value to a boolean type.\n\n**parameters**:\n- self: The instance of the class.\n- v: The string value to be converted to a boolean.\n\n**Code Description**: \nThe _str2bool function first checks if the input value is already a boolean. If not, it converts the string representation of a boolean value to a boolean type. It accepts strings like \"yes\", \"true\", \"t\", \"y\", \"1\" as True, and strings like \"no\", \"false\", \"f\", \"n\", \"0\" as False. If the input value does not match any of these, it raises an ArgumentTypeError.\n\nThis function is called within the CustomArgumentParser class to handle boolean type arguments passed to the add_argument method. When the type of the argument is bool, the _str2bool function is used to convert the string representation to a boolean value before adding the argument.\n\n**Note**: \nDevelopers should ensure that the input string represents a valid boolean value to avoid raising an ArgumentTypeError.\n\n**Output Example**: \nIf the input value is \"yes\", the function will return True."
+      ],
+      "code_start_line": 19,
+      "code_end_line": 29,
+      "params": [
+        "self",
+        "v"
+      ],
+      "have_return": true,
+      "code_content": "    def _str2bool(self, v):\n        if isinstance(v, bool):\n            return v\n        if v.lower() in (\"yes\", \"true\", \"t\", \"y\", \"1\"):\n            return True\n        elif v.lower() in (\"no\", \"false\", \"f\", \"n\", \"0\"):\n            return False\n        else:\n            raise argparse.ArgumentTypeError(\n                f\"Boolean value expected got {v}.\"\n            )\n",
+      "name_column": 8,
+      "item_status": "doc_up_to_date",
+      "who_reference_me": [
+        "src/custom_argument_parser.py/CustomArgumentParser/add_argument"
+      ],
+      "reference_who": [],
+      "special_reference_type": []
+    }
+  ]
+}

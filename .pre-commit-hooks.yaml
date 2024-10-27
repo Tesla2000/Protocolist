@@ -1,0 +1,7 @@
+-   id: interfacer
+    name: Interfacer
+    description: Fills missing types and creates protocal instances to interface
+    entry: interfacer
+    language: python
+    types: [python]
+    files: ''
