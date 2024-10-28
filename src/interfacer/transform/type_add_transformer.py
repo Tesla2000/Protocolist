@@ -29,29 +29,44 @@ from mypy.memprofile import defaultdict
 from ..config import Config
 from .transformer import Transformer
 
-
+_exception2method = dict(zip((
+                    r"Value of type \"([^\"]+)\" is not indexable",
+                    r"has incompatible type \"([^\"]+)\"; expected \"Sized\"",
+                    r"No overload variant of \"iter\" matches argument type \"([^\"]+)\"",
+                    r"\"([^\"]+)\" has no attribute \"__iter__\"",
+                    r"No overload variant of \"next\" matches argument type \"([^\"]+)\"",
+                ),
+                (
+                    "__getitem__(self, index)",
+                    "__len__(self)",
+                    "__iter__(self)",
+                    "__iter__(self)",
+                    "__next__(self)",
+                )))
 class TypeAddTransformer(Transformer):
     def __init__(self, module: Module, config: Config):
         super().__init__(module, config)
         self.protocols = defaultdict(int)
 
     def leave_FunctionDef(
-        self, original_node: "FunctionDef", updated_node: "FunctionDef"
+            self, original_node: "FunctionDef", updated_node: "FunctionDef"
     ) -> "FunctionDef":
         temp_python_file = self.config.mypy_folder / "_temp.py"
         import_statement = (
             "import collections.abc\nfrom typing import Literal, Protocol\n"
         )
         updated_code = import_statement + Module([updated_node]).code
-        exceptions = self._get_exceptions(temp_python_file, updated_code)
         parameter_pattern = r"Literal\[\'([^\']+)\'\]"
-        while exceptions:
+        for _ in range(100):
+            exceptions = self._get_exceptions(temp_python_file, updated_code)
             attr_exceptions = list(
                 filter(re.compile(r"\[attr\-defined\]$").search, exceptions)
             )
             attr_exceptions = list(
                 filter(re.compile(parameter_pattern).search, attr_exceptions)
             )
+            if not attr_exceptions:
+                break
             attributes = map_reduce(
                 attr_exceptions,
                 lambda exception: re.findall(parameter_pattern, exception)[0],
@@ -67,7 +82,7 @@ class TypeAddTransformer(Transformer):
                 import_statement
             )
             updated_code = (
-                import_statement + "\n".join(protocols.values()) + "\n" + rest
+                    import_statement + "\n".join(protocols.values()) + "\n" + rest
             )
             for key, value in protocols.items():
                 class_name = value.replace("class ", "", 1).split("(")[0]
@@ -137,8 +152,8 @@ class TypeAddTransformer(Transformer):
                     lambda exception: exception.group(1),
                 )
                 for (
-                    function_name,
-                    kwarg_names,
+                        function_name,
+                        kwarg_names,
                 ) in unexpected_kwargs_exceptions.items():
                     n_args = len(
                         re.findall(
@@ -157,18 +172,42 @@ class TypeAddTransformer(Transformer):
                         function_signature
                         + "".join(map(", {}".format, kwarg_names)),
                     )
-            exceptions = self._get_exceptions(temp_python_file, updated_code)
+        updated_code = self._handle_wrong_interface(exceptions, updated_code)
         for key, value in self.protocols.items():
             for i in range(value):
                 i = str(i + 1)
+                literal = f"Literal['{key + i}']"
+                if literal not in updated_code:
+                    continue
                 exceptions = self._get_exceptions(
                     temp_python_file,
                     updated_code.replace(f"Literal['{key + i}']", "None"),
                 )
-                if exceptions:
-                    pass
-        # TODO: replace None with minimal interface coming from collections.abc
+                if not exceptions:
+                    updated_code = updated_code.replace(f"Literal['{key + i}']", "Any")
+                    continue
+                interface = self._get_missing_interface(exceptions)
+                updated_code = updated_code.replace(f"Literal['{key + i}']", interface)
         return updated_node
+
+    def _get_missing_interface(self, exceptions: Iterable[str]) -> str:
+        methods = tuple(method.split("(")[0] for pattern, method in _exception2method.items() if any(map(re.compile(pattern).search, exceptions)))
+        if methods == ("__len__", "__iter__"):
+            return "collections.abc.Sequence"
+
+    def _handle_wrong_interface(self, exceptions: Iterable[str], updated_code: str) -> str:
+        def handle_exception(pattern: str, method: str, code: str) -> str:
+            pattern_search = re.compile(pattern).search
+            pattern_exceptions = map(pattern_search, filter(pattern_search, exceptions))
+            for exception in pattern_exceptions:
+                type_ = exception.group(1)
+                code = code.replace(f"class {type_}(Protocol):",
+                                    f"class {type_}(Protocol):\n\tdef {method}:\n\t\t...")
+            return code
+
+        for pattern, method in _exception2method.items():
+            updated_code = handle_exception(pattern, method, updated_code)
+        return updated_code
 
     def _get_function_signature(self, function_name: str, n_args: int):
         return f"def {function_name}(self" + "".join(
@@ -186,12 +225,12 @@ class TypeAddTransformer(Transformer):
         for attr_field in attr_fields:
             self.protocols[attr_field] += 1
         return (
-            f"class {to_camelcase(param_name)}(Protocol):\n\t"
-            + "\n\t".join(
-                f"{attr_field}: Literal['"
-                f"{attr_field}{self.protocols[attr_field]}']"
-                for attr_field in attr_fields
-            )
+                f"class {to_camelcase(param_name)}(Protocol):\n\t"
+                + "\n\t".join(
+            f"{attr_field}: Literal['"
+            f"{attr_field}{self.protocols[attr_field]}']"
+            for attr_field in attr_fields
+        )
         )
 
     def _get_exceptions(self, temp_python_file: Path, updated_code: str):
@@ -199,7 +238,7 @@ class TypeAddTransformer(Transformer):
         return mypy.api.run([str(temp_python_file)])[0].splitlines()[:-1]
 
     def leave_Param(
-        self, original_node: "Param", updated_node: "Param"
+            self, original_node: "Param", updated_node: "Param"
     ) -> Union[
         "Param", MaybeSentinel, FlattenSentinel["Param"], RemovalSentinel
     ]:
@@ -219,7 +258,7 @@ class TypeAddTransformer(Transformer):
                                 slice=Index(
                                     value=SimpleString(
                                         value=f"'{updated_node.name.value}"
-                                        f"{self.protocols[param_name]}'",
+                                              f"{self.protocols[param_name]}'",
                                         lpar=[],
                                         rpar=[],
                                     ),
