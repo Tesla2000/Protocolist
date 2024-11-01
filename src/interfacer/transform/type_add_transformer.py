@@ -132,42 +132,45 @@ class TypeAddTransformer(Transformer):
             self.temp_python_file, self.updated_code
         )
         to_many_args_pattern = (
-            r"error: Too many arguments for " r"\"([^\"]+)\"\s+\[call-arg\]"
+            r"error: Too many arguments for " r"\"([^\"]+)\""
         )
         search = re.compile(to_many_args_pattern).search
-        for _ in range(100):
+        while True:
             many_args_exceptions = list(
                 map(search, filter(search, exceptions))
             )
+            if not many_args_exceptions:
+                break
             for exception in many_args_exceptions:
                 function_name = exception.group(1)
+                function_signature = self._get_function_signature(
+                    function_name, self.updated_code
+                )
                 n_args = len(
                     re.findall(
                         r"\d+",
-                        re.findall(
-                            rf"def {function_name}\(self[\, arg(\d)]+",
-                            self.updated_code,
-                        )[0],
+                        function_signature,
                     )
                 )
-                function_signature = self._get_function_signature(
-                    function_name, n_args
+                exceptions = self._get_exceptions(
+                    self.temp_python_file,
+                    self.updated_code.replace(
+                        function_signature,
+                        function_signature + f", arg{n_args}: None",
+                    ),
                 )
                 self.updated_code = self.updated_code.replace(
                     function_signature,
-                    function_signature + f", arg{n_args}",
+                    function_signature
+                    + f", arg{n_args}: {self._handle_incompatible_type(
+                        function_name, exceptions
+                    )}",
                 )
                 exceptions = self._get_exceptions(
                     self.temp_python_file, self.updated_code
                 )
-            if not many_args_exceptions:
-                break
-        else:
-            raise ValueError("Issue with number of arguments")
         unexpected_kwargs_pattern = (
-            r"Unexpected keyword argument "
-            r"\"([^\"]+)\" for \"([^\"]+)\"\s+"
-            r"\[call-arg\]"
+            r"Unexpected keyword argument " r"\"([^\"]+)\" for \"([^\"]+)\""
         )
         search = re.compile(unexpected_kwargs_pattern).search
         unexpected_kwargs_exceptions = map_reduce(
@@ -179,22 +182,46 @@ class TypeAddTransformer(Transformer):
             function_name,
             kwarg_names,
         ) in unexpected_kwargs_exceptions.items():
-            n_args = len(
-                re.findall(
-                    r"\d+",
-                    re.findall(
-                        rf"def {function_name}\(self[, arg(\d)]+",
-                        self.updated_code,
-                    )[0],
+            for kwarg_name in set(kwarg_names):
+                function_signature = self._get_function_signature(
+                    function_name, self.updated_code
+                )
+                exceptions = self._get_exceptions(
+                    self.temp_python_file,
+                    self.updated_code.replace(
+                        function_signature,
+                        function_signature + f", {kwarg_name}: None",
+                    ),
+                )
+                self.updated_code = self.updated_code.replace(
+                    function_signature,
+                    function_signature
+                    + f", {kwarg_name}: {self._handle_incompatible_type(
+                        function_name, exceptions
+                    )}",
+                )
+
+    def _handle_incompatible_type(
+        self, function_name: str, exceptions: list[str]
+    ):
+        incompatible_type_pattern = rf"Argument \S+ to \"{function_name}\" of \"[^\"]+\" has incompatible type \"([^\"]+)\"; expected \"None\""  # noqa: E501
+        incompatible_type_search = re.compile(incompatible_type_pattern).search
+        types = tuple(
+            {"list[Never]": "list"}.get(type, type)
+            for type in set(
+                incompatible_type_exception.group(1)
+                for incompatible_type_exception in map(
+                    incompatible_type_search,
+                    filter(incompatible_type_search, exceptions),
                 )
             )
-            function_signature = self._get_function_signature(
-                function_name, n_args
-            )
-            self.updated_code = self.updated_code.replace(
-                function_signature,
-                function_signature + "".join(map(", {}".format, kwarg_names)),
-            )
+        )
+
+        if not types:
+            return "Any"
+        elif len(types) == 1:
+            return types[0]
+        return f"Union[{', '.join(types)}]"
 
     def _get_missing_interface(
         self, class_name: str, exceptions: Iterable[str], code: str
@@ -267,10 +294,13 @@ class TypeAddTransformer(Transformer):
             )
         return self.updated_code
 
-    def _get_function_signature(self, function_name: str, n_args: int):
-        return f"def {function_name}(self" + "".join(
-            map(", arg{}".format, map(str, range(n_args)))
-        )
+    def _get_function_signature(
+        self, function_name: str, updated_code: str
+    ) -> str:
+        return re.findall(
+            rf"def {function_name}\(self[^)]*",
+            updated_code,
+        )[0]
 
     def _create_protocol(self, class_name: str, attr_fields: Iterable[str]):
         attr_fields = set(attr_fields)
