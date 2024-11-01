@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 
-def foo(message: Literal['message1']) -> None:
+def foo(message) -> None:
     message.some_method("str", "int", string="string")
     dictionary = {
         "role1": len(message.role),
