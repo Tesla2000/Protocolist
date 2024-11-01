@@ -3,6 +3,7 @@ from __future__ import annotations
 
 def foo(message) -> None:
     message.some_method("str", "int", string="string")
+    message.some_method("str", 5, string=[])
     dictionary = {
         "role1": len(message.role),
         "role2": iter(message.role),
