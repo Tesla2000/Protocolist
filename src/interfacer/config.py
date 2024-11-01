@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from typing import Any
 from typing import Optional
 from typing import Type
 
@@ -8,6 +10,7 @@ import toml
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic import Field
+from pydantic_core import PydanticUndefined
 
 from .custom_argument_parser import CustomArgumentParser
 
@@ -19,6 +22,15 @@ class Config(BaseModel):
     pos_args: list[str] = Field(default_factory=list)
     mypy_folder: Path = _root / ".temp"
     config_file: Optional[Path] = None
+    interfaces_path: Path
+
+    def __init__(self, /, **data: Any):
+        data["interfaces_path"] = Path(
+            data.get(
+                "interfaces_path", os.getcwd() + "/interfaces/interfaces.py"
+            )
+        )
+        super().__init__(**data)
 
 
 def parse_arguments(config_class: Type[Config]):
@@ -46,7 +58,7 @@ def create_config_with_args(config_class: Type[Config], args) -> Config:
     arg_dict = {
         name: getattr(args, name)
         for name in config_class.model_fields
-        if hasattr(args, name)
+        if hasattr(args, name) and getattr(args, name) != PydanticUndefined
     }
     if arg_dict.get("config_file") and Path(arg_dict["config_file"]).exists():
         config = config_class(
