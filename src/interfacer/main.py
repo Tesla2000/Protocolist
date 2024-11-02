@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from collections import defaultdict
 from pathlib import Path
 
@@ -31,4 +32,5 @@ def main() -> int:
             filepath,
             config=config,
         )
+    fail |= os.system(f"reorder-python-imports {' '.join(config.pos_args)}")
     return fail

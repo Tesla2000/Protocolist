@@ -2,14 +2,11 @@ from __future__ import annotations
 
 from typing import Union
 
-from libcst import Annotation
+import libcst
 from libcst import FlattenSentinel
 from libcst import MaybeSentinel
-from libcst import Name
 from libcst import Param
 from libcst import RemovalSentinel
-from libcst import SimpleWhitespace
-from mypyc.subtype import annotations
 
 from ..config import Config
 from .transformer import Transformer
@@ -34,17 +31,10 @@ class PrototypeApplier(Transformer):
         if annotation not in self.annotations:
             return updated_node
         return updated_node.with_changes(
-            annotation=Annotation(
-                annotation=Name(
-                    value=self.annotations[annotation],
-                    lpar=[],
-                    rpar=[],
-                ),
-                whitespace_before_indicator=SimpleWhitespace(
-                    value="",
-                ),
-                whitespace_after_indicator=SimpleWhitespace(
-                    value=" ",
-                ),
+            annotation=libcst.parse_module(
+                f"def foo(bar: {self.annotations[annotation]}):\n\tpass"
             )
+            .body[0]
+            .params.params[0]
+            .annotation
         )
