@@ -5,7 +5,6 @@ from typing import Union
 from libcst import Annotation
 from libcst import FlattenSentinel
 from libcst import MaybeSentinel
-from libcst import Module
 from libcst import Name
 from libcst import Param
 from libcst import RemovalSentinel
@@ -17,10 +16,8 @@ from .transformer import Transformer
 
 
 class PrototypeApplier(Transformer):
-    def __init__(
-        self, module: Module, config: Config, annotations: dict[str, str]
-    ):
-        super().__init__(module, config)
+    def __init__(self, config: Config, annotations: dict[str, str]):
+        super().__init__(config)
         self.annotations = annotations
 
     def leave_Param(

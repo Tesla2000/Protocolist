@@ -10,12 +10,12 @@ from ..config import Config
 from .type_add_transformer import TypeAddTransformer
 
 
-def modify_file(
+def create_interfaces(
     filepath: Path, config: Config, protocols: defaultdict[int]
 ) -> int:
     code = filepath.read_text()
     module = cst.parse_module(code)
-    transformer = TypeAddTransformer(module, config, protocols)
+    transformer = TypeAddTransformer(config, protocols)
     new_code = module.visit(transformer).code
     interface_path = ".".join(
         config.interfaces_path.relative_to(os.getcwd()).with_suffix("").parts

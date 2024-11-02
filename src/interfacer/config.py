@@ -23,6 +23,7 @@ class Config(BaseModel):
     mypy_folder: Path = _root / ".temp"
     config_file: Optional[Path] = None
     interfaces_path: Path
+    interfaces_path_origin: Path
 
     def __init__(self, /, **data: Any):
         data["interfaces_path"] = Path(
@@ -30,6 +31,7 @@ class Config(BaseModel):
                 "interfaces_path", os.getcwd() + "/interfaces/interfaces.py"
             )
         )
+        data["interfaces_path_origin"] = data["interfaces_path"].parent
         super().__init__(**data)
 
 

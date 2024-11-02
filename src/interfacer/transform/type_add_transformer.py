@@ -4,13 +4,10 @@ import re
 import string
 from functools import reduce
 from operator import itemgetter
-from pathlib import Path
 from typing import Iterable
 from typing import Optional
 from typing import Union
 
-import libcst as cst
-import mypy.api
 from libcst import Annotation
 from libcst import FlattenSentinel
 from libcst import FunctionDef
@@ -30,8 +27,10 @@ from more_itertools import map_reduce
 from mypy.memprofile import defaultdict
 
 from ..config import Config
+from ..consts import import_statement
+from ..get_mypy_exceptions import get_mypy_exceptions
+from .class_extractor import ClassExtractor
 from .prototype_applier import PrototypeApplier
-from .prototype_extractor import PrototypeExtractor
 from .transformer import Transformer
 
 
@@ -41,12 +40,11 @@ class TypeAddTransformer(Transformer):
 
     def __init__(
         self,
-        module: Module,
         config: Config,
-        protocol: Optional[defaultdict[int]] = None,
+        protocol: defaultdict[int],
     ):
-        super().__init__(module, config)
-        self.protocols = protocol or defaultdict(int)
+        super().__init__(config)
+        self.protocols = protocol
         self.temp_python_file = self.config.mypy_folder / "_temp.py"
 
     def leave_FunctionDef(
@@ -61,7 +59,7 @@ class TypeAddTransformer(Transformer):
                     literal = f"Literal['{key + i}']"
                     if literal not in self.updated_code:
                         continue
-                    exceptions = self._get_exceptions(
+                    exceptions = get_mypy_exceptions(
                         self.temp_python_file,
                         self.updated_code.replace(
                             f"Literal['{key + i}']", "None"
@@ -84,7 +82,7 @@ class TypeAddTransformer(Transformer):
     def _update_parameters(self, updated_node: FunctionDef) -> FunctionDef:
         module = Module([updated_node])
         new_module = module.visit(
-            PrototypeApplier(module, self.config, self.annotations)
+            PrototypeApplier(self.config, self.annotations)
         )
         function_def = new_module.body[0]
         assert isinstance(function_def, FunctionDef)
@@ -109,13 +107,10 @@ class TypeAddTransformer(Transformer):
         self.config.interfaces_path.write_text(interface_code)
 
     def _get_created_prototypes(self) -> dict[str, str]:
-        module = cst.parse_module(self.updated_code)
-        transformer = PrototypeExtractor(module, self.config)
-        module.visit(transformer)
-        return transformer.prototypes
+        return ClassExtractor.extract_classes(self.updated_code)
 
     def _add_conv_attribute_to_method(self):
-        exceptions = self._get_exceptions(
+        exceptions = get_mypy_exceptions(
             self.temp_python_file, self.updated_code
         )
         callable_pattern = r"\"Literal\[\'([^\']+)\'\]\" not callable"
@@ -128,7 +123,7 @@ class TypeAddTransformer(Transformer):
                 f"Literal['{field_name}']",
                 f"def {field_name.rstrip(string.digits)}" "(self):\n\t\t...",
             )
-        exceptions = self._get_exceptions(
+        exceptions = get_mypy_exceptions(
             self.temp_python_file, self.updated_code
         )
         to_many_args_pattern = (
@@ -152,7 +147,7 @@ class TypeAddTransformer(Transformer):
                         function_signature,
                     )
                 )
-                exceptions = self._get_exceptions(
+                exceptions = get_mypy_exceptions(
                     self.temp_python_file,
                     self.updated_code.replace(
                         function_signature,
@@ -166,7 +161,7 @@ class TypeAddTransformer(Transformer):
                         function_name, exceptions
                     )}",
                 )
-                exceptions = self._get_exceptions(
+                exceptions = get_mypy_exceptions(
                     self.temp_python_file, self.updated_code
                 )
         unexpected_kwargs_pattern = (
@@ -186,7 +181,7 @@ class TypeAddTransformer(Transformer):
                 function_signature = self._get_function_signature(
                     function_name, self.updated_code
                 )
-                exceptions = self._get_exceptions(
+                exceptions = get_mypy_exceptions(
                     self.temp_python_file,
                     self.updated_code.replace(
                         function_signature,
@@ -216,7 +211,6 @@ class TypeAddTransformer(Transformer):
                 )
             )
         )
-
         if not types:
             return "Any"
         elif len(types) == 1:
@@ -245,6 +239,8 @@ class TypeAddTransformer(Transformer):
             )
         )
         methods += attributes
+        if not methods:
+            return "Any"
         valid_iterfaces = tuple(
             (interface, superclasses)
             for interface, superclasses, interface_methods in _abc_classes
@@ -271,28 +267,6 @@ class TypeAddTransformer(Transformer):
                 self._to_camelcase(class_name)
             )
         )}]"
-
-    def _handle_wrong_interface(
-        self, exceptions: Iterable[str], updated_code: str
-    ) -> str:
-        def handle_exception(pattern: str, method: str, code: str) -> str:
-            pattern_search = re.compile(pattern).search
-            pattern_exceptions = map(
-                pattern_search, filter(pattern_search, exceptions)
-            )
-            for exception in pattern_exceptions:
-                type_ = exception.group(1)
-                code = code.replace(
-                    f"class {type_}(Protocol):",
-                    f"class {type_}(Protocol):\n\tdef {method}:\n\t\t...",
-                )
-            return code
-
-        for pattern, method in _exception2method.items():
-            self.updated_code = handle_exception(
-                pattern, method, self.updated_code
-            )
-        return self.updated_code
 
     def _get_function_signature(
         self, function_name: str, updated_code: str
@@ -326,10 +300,6 @@ class TypeAddTransformer(Transformer):
             text = text.replace(underscore, underscore[-1])
         return text[0].upper() + text[1:]
 
-    def _get_exceptions(self, temp_python_file: Path, updated_code: str):
-        temp_python_file.write_text(updated_code)
-        return mypy.api.run([str(temp_python_file)])[0].splitlines()[:-1]
-
     def leave_Param(
         self, original_node: "Param", updated_node: "Param"
     ) -> Union[
@@ -337,6 +307,8 @@ class TypeAddTransformer(Transformer):
     ]:
         if updated_node.annotation is None:
             param_name = updated_node.name.value
+            if param_name == "self":
+                return updated_node
             self.protocols[param_name] += 1
             self.annotations[param_name + str(self.protocols[param_name])] = (
                 None
@@ -398,7 +370,7 @@ _exception2method = dict(
             r"has incompatible type \"([^\"]+)\"; expected \"Sized\"",
             r"No overload variant of \"iter\" matches argument type \"([^\"]+)\"",  # noqa: E501
             r"\"([^\"]+)\" has no attribute \"__iter__\"",
-            r"No overload variant of \"next\" matches argument type \"([^\"]+)\"",  # noqa: E501
+            r'No overload variant of "next" matches argument type "(?!Literal\[)[^"]+"',  # noqa: E501
         ),
         (
             "__getitem__(self, index)",
@@ -580,7 +552,3 @@ _abc_method_params = {
     "update": ["self", "*args", "**kwargs"],
     "values": ["self"],
 }
-import_statement = (
-    "import collections.abc\nfrom typing import Literal, "
-    "Protocol, Union, runtime_checkable\n"
-)

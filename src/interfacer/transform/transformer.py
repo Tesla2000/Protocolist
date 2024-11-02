@@ -3,17 +3,15 @@ from __future__ import annotations
 from typing import Sequence
 
 import libcst as cst
-from libcst import Module
 
 from ..config import Config
 
 
 class Transformer(cst.CSTTransformer):
 
-    def __init__(self, module: Module, config: Config):
+    def __init__(self, config: Config):
         super().__init__()
         self.config = config
-        self.module = module
 
     def _get_path_attrs(self, elem, attrs: Sequence[str]):
         current_elem = elem
