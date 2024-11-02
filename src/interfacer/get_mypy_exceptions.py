@@ -1,0 +1,10 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+import mypy
+
+
+def get_mypy_exceptions(temp_python_file: Path, updated_code: str):
+    temp_python_file.write_text(updated_code)
+    return mypy.api.run([str(temp_python_file)])[0].splitlines()[:-1]
