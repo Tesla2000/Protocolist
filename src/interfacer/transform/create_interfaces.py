@@ -22,8 +22,10 @@ def create_interfaces(
     )
     new_code = (
         "".join(
-            f"from {interface_path} import {annotation}\n"
-            for annotation in transformer.annotations.values()
+            set(
+                f"from {interface_path} import {annotation}\n"
+                for annotation in transformer.annotations.values()
+            )
         )
         + new_code
     )

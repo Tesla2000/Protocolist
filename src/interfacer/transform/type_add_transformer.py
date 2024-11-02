@@ -36,7 +36,7 @@ from .transformer import Transformer
 
 class TypeAddTransformer(Transformer):
     updated_code: str
-    annotations: dict[str, Optional[str]] = {}
+    annotations: dict[str, Optional[str]]
 
     def __init__(
         self,
@@ -46,6 +46,7 @@ class TypeAddTransformer(Transformer):
         super().__init__(config)
         self.protocols = protocol
         self.temp_python_file = self.config.mypy_folder / "_temp.py"
+        self.annotations = {}
 
     def leave_FunctionDef(
         self, original_node: "FunctionDef", updated_node: "FunctionDef"
@@ -73,7 +74,11 @@ class TypeAddTransformer(Transformer):
                     )
                     self._add_conv_attribute_to_method()
                     if (key + i) in self.annotations:
-                        self.annotations[key + i] = interface
+                        self.annotations[key + i] = (
+                            interface
+                            if interface == "Any"
+                            else self._to_camelcase(key + i)
+                        )
             if len(protocol_items) == len(tuple(self.protocols.items())):
                 break
         self.save_prototypes()
@@ -282,7 +287,9 @@ class TypeAddTransformer(Transformer):
             self.protocols[attr_field] += 1
 
         def create_field(attr_field: str) -> str:
-            if attr_field in _abc_methods:
+            if attr_field in filter(
+                lambda method: method.startswith("__"), _abc_methods
+            ):
                 parameters = ", ".join(_abc_method_params[attr_field])
                 return f"def {attr_field}({parameters}):\n\t\t..."
             literal_name = attr_field + str(self.protocols[attr_field])

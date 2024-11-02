@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import mypy
+import mypy.api
 
 
 def get_mypy_exceptions(temp_python_file: Path, updated_code: str):
