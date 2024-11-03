@@ -4,6 +4,7 @@ import os
 from collections import defaultdict
 from pathlib import Path
 
+from .ProtocolDict import ProtocolDict
 from .add_inheritance import add_inheritance
 from .config import Config
 from .config import create_config_with_args
@@ -20,7 +21,7 @@ def main() -> int:
     paths = tuple(
         filter(lambda path: path.suffix == ".py", map(Path, config.pos_args))
     )
-    protocols = defaultdict(int)
+    protocols = ProtocolDict(int)
     for filepath in paths:
         fail |= create_interfaces(
             filepath,

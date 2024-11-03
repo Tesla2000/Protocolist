@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import re
 import string
-from functools import reduce
-from operator import itemgetter
 from typing import Iterable
 from typing import Optional
 from typing import Union
@@ -24,14 +22,16 @@ from libcst import SimpleWhitespace
 from libcst import Subscript
 from libcst import SubscriptElement
 from more_itertools import map_reduce
-from mypy.memprofile import defaultdict
 
-from ..config import Config
-from ..consts import import_statement
-from ..get_mypy_exceptions import get_mypy_exceptions
 from .class_extractor import ClassExtractor
 from .prototype_applier import PrototypeApplier
 from .transformer import Transformer
+from ..ProtocolDict import ProtocolDict
+from ..config import Config
+from ..consts import import_statement, ANY, abc_method_params, abc_methods, \
+    abc_classes, exception2method
+from ..get_mypy_exceptions import get_mypy_exceptions
+from ..to_camelcase import to_camelcase
 
 
 class TypeAddTransformer(Transformer):
@@ -41,7 +41,7 @@ class TypeAddTransformer(Transformer):
     def __init__(
         self,
         config: Config,
-        protocol: defaultdict[int],
+        protocol: ProtocolDict,
     ):
         super().__init__(config)
         self.protocols = protocol
@@ -54,31 +54,25 @@ class TypeAddTransformer(Transformer):
         self.updated_code = import_statement + Module([updated_node]).code
         while True:
             protocol_items = tuple(self.protocols.items())
-            for key, value in protocol_items:
-                for i in range(value):
-                    i = str(i + 1)
-                    literal = f"Literal['{key + i}']"
-                    if literal not in self.updated_code:
-                        continue
-                    exceptions = get_mypy_exceptions(
-                        self.temp_python_file,
-                        self.updated_code.replace(
-                            f"Literal['{key + i}']", "None"
-                        ),
-                    )
-                    interface = self._get_missing_interface(
-                        key + i, exceptions, self.updated_code
-                    )
-                    self.updated_code = self.updated_code.replace(
-                        f"Literal['{key + i}']", interface
-                    )
-                    self._add_conv_attribute_to_method()
-                    if (key + i) in self.annotations:
-                        self.annotations[key + i] = (
-                            interface
-                            if interface == "Any"
-                            else self._to_camelcase(key + i)
-                        )
+            for protocol in self.protocols.get_protocols():
+                literal = f"Literal['{protocol}']"
+                if literal not in self.updated_code:
+                    continue
+                exceptions = get_mypy_exceptions(
+                    self.temp_python_file,
+                    self.updated_code.replace(
+                        f"Literal['{protocol}']", "None"
+                    ),
+                )
+                interface = self._get_missing_interface(
+                    protocol, exceptions, self.updated_code
+                )
+                self.updated_code = self.updated_code.replace(
+                    f"Literal['{protocol}']", interface
+                )
+                self._add_conv_attribute_to_method()
+                if protocol in self.annotations:
+                    self.annotations[protocol] = interface
             if len(protocol_items) == len(tuple(self.protocols.items())):
                 break
         self.save_prototypes()
@@ -159,13 +153,15 @@ class TypeAddTransformer(Transformer):
                         function_signature + f", arg{n_args}: None",
                     ),
                 )
-                self.updated_code = self.updated_code.replace(
-                    function_signature,
-                    function_signature
-                    + f", arg{n_args}: {self._handle_incompatible_type(
+                hint = self._handle_incompatible_type(
                         function_name, exceptions
-                    )}",
-                )
+                    )
+                if hint != ANY or self.config.allow_any:
+                    self.updated_code = self.updated_code.replace(
+                        function_signature,
+                        function_signature
+                        + f", arg{n_args}: {hint}",
+                    )
                 exceptions = get_mypy_exceptions(
                     self.temp_python_file, self.updated_code
                 )
@@ -217,7 +213,7 @@ class TypeAddTransformer(Transformer):
             )
         )
         if not types:
-            return "Any"
+            return ANY
         elif len(types) == 1:
             return types[0]
         return f"Union[{', '.join(types)}]"
@@ -225,11 +221,12 @@ class TypeAddTransformer(Transformer):
     def _get_missing_interface(
         self, class_name: str, exceptions: Iterable[str], code: str
     ) -> str:
+        exceptions = frozenset(exceptions)
         if not exceptions:
-            return "Any"
+            return ANY
         methods = list(
             method.split("(")[0]
-            for pattern, method in _exception2method.items()
+            for pattern, method in exception2method.items()
             if any(map(re.compile(pattern).search, exceptions))
         )
         pattern_search = re.compile(
@@ -245,10 +242,10 @@ class TypeAddTransformer(Transformer):
         )
         methods += attributes
         if not methods:
-            return "Any"
+            return ANY
         valid_iterfaces = tuple(
             (interface, superclasses)
-            for interface, superclasses, interface_methods in _abc_classes
+            for interface, superclasses, interface_methods in abc_classes
             if all(map(interface_methods.__contains__, methods))
         )
         valid_interface_names = tuple(
@@ -259,19 +256,30 @@ class TypeAddTransformer(Transformer):
             for interface, superclasses in valid_iterfaces
             if not any(map(valid_interface_names.__contains__, superclasses))
         )
+
+        def is_signature_correct(interface: str) -> bool:
+            new_exceptions = set(get_mypy_exceptions(self.temp_python_file,
+                                                     self.updated_code.replace(
+                                                         f"Literal['{class_name}']",
+                                                         interface))).difference(
+                exceptions)
+            return not any(map(re.compile(fr"No overload variant of \"[^\"]+\" of \"{interface}\" matches argument").search, new_exceptions))
+        valid_iterfaces = tuple(filter(is_signature_correct, valid_iterfaces))
         protocol = self._create_protocol(class_name, methods)
         rest = self.updated_code.partition(import_statement)[-1]
         self.updated_code = "\n".join(
             (import_statement.strip(), protocol.strip(), rest.strip())
         )
         if not len(valid_iterfaces):
-            return self._to_camelcase(class_name)
+            return to_camelcase(class_name)
         return f"Union[{', '.join(
             (
                 *tuple(map("collections.abc.".__add__, valid_iterfaces)),
-                self._to_camelcase(class_name)
+                to_camelcase(class_name)
             )
         )}]"
+
+
 
     def _get_function_signature(
         self, function_name: str, updated_code: str
@@ -288,24 +296,17 @@ class TypeAddTransformer(Transformer):
 
         def create_field(attr_field: str) -> str:
             if attr_field in filter(
-                lambda method: method.startswith("__"), _abc_methods
+                lambda method: method.startswith("__"), abc_methods
             ):
-                parameters = ", ".join(_abc_method_params[attr_field])
+                parameters = ", ".join(abc_method_params[attr_field])
                 return f"def {attr_field}({parameters}):\n\t\t..."
             literal_name = attr_field + str(self.protocols[attr_field])
             return f"{attr_field}: Literal['{literal_name}']"
 
         return (
-            f"class {self._to_camelcase(class_name)}(Protocol):\n\t"
+            f"class {to_camelcase(class_name)}(Protocol):\n\t"
             + "\n\t".join(map(create_field, attr_fields))
         )
-
-    @staticmethod
-    def _to_camelcase(text: str):
-        underscores = re.findall(r"_\w", text)
-        for underscore in underscores:
-            text = text.replace(underscore, underscore[-1])
-        return text[0].upper() + text[1:]
 
     def leave_Param(
         self, original_node: "Param", updated_node: "Param"
@@ -368,194 +369,3 @@ class TypeAddTransformer(Transformer):
                 )
             )
         return updated_node
-
-
-_exception2method = dict(
-    zip(
-        (
-            r"Value of type \"([^\"]+)\" is not indexable",
-            r"has incompatible type \"([^\"]+)\"; expected \"Sized\"",
-            r"No overload variant of \"iter\" matches argument type \"([^\"]+)\"",  # noqa: E501
-            r"\"([^\"]+)\" has no attribute \"__iter__\"",
-            r'No overload variant of "next" matches argument type "(?!Literal\[)[^"]+"',  # noqa: E501
-        ),
-        (
-            "__getitem__(self, index)",
-            "__len__(self)",
-            "__iter__(self)",
-            "__iter__(self)",
-            "__next__(self)",
-        ),
-    )
-)
-_abc_classes = [
-    ("Container", [], ["__contains__"]),
-    ("Hashable", [], ["__hash__"]),
-    ("Iterable", [], ["__iter__"]),
-    ("Iterator", ["Iterable"], ["__next__", "__iter__"]),
-    ("Reversible", ["Iterable"], ["__reversed__"]),
-    (
-        "Generator",
-        ["Iterator"],
-        ["send", "throw", "close", "__iter__", "__next__"],
-    ),
-    ("Sized", [], ["__len__"]),
-    ("Callable", [], ["__call__"]),
-    (
-        "Collection",
-        ["Sized", "Iterable", "Container"],
-        ["__contains__", "__iter__", "__len__"],
-    ),
-    (
-        "Sequence",
-        ["Reversible", "Collection"],
-        [
-            "__getitem__",
-            "__len__",
-            "__contains__",
-            "__iter__",
-            "__reversed__",
-            "index",
-            "count",
-        ],
-    ),
-    (
-        "MutableSequence",
-        ["Sequence"],
-        [
-            "__getitem__",
-            "__setitem__",
-            "__delitem__",
-            "__len__",
-            "insert",
-            "append",
-            "clear",
-            "reverse",
-            "extend",
-            "pop",
-            "remove",
-            "__iadd__",
-        ],
-    ),
-    ("ByteString", ["Sequence"], ["__getitem__", "__len__"]),
-    (
-        "Set",
-        ["Collection"],
-        [
-            "__contains__",
-            "__iter__",
-            "__len__",
-            "__le__",
-            "__lt__",
-            "__eq__",
-            "__ne__",
-            "__gt__",
-            "__ge__",
-            "__and__",
-            "__or__",
-            "__sub__",
-            "__xor__",
-            "isdisjoint",
-        ],
-    ),
-    (
-        "MutableSet",
-        ["Set"],
-        [
-            "__contains__",
-            "__iter__",
-            "__len__",
-            "add",
-            "discard",
-            "clear",
-            "pop",
-            "remove",
-            "__ior__",
-            "__iand__",
-            "__ixor__",
-            "__isub__",
-        ],
-    ),
-    (
-        "Mapping",
-        ["Collection"],
-        [
-            "__getitem__",
-            "__iter__",
-            "__len__",
-            "__contains__",
-            "keys",
-            "items",
-            "values",
-            "get",
-            "__eq__",
-            "__ne__",
-        ],
-    ),
-    (
-        "MutableMapping",
-        ["Mapping"],
-        [
-            "__getitem__",
-            "__setitem__",
-            "__delitem__",
-            "__iter__",
-            "__len__",
-            "pop",
-            "popitem",
-            "clear",
-            "update",
-            "setdefault",
-        ],
-    ),
-]
-_abc_methods = reduce(set.union, map(itemgetter(2), _abc_classes), set())
-_abc_method_params = {
-    "__and__": ["self", "other"],
-    "__call__": ["self", "*args", "**kwargs"],
-    "__contains__": ["self", "item"],
-    "__delitem__": ["self", "key"],
-    "__eq__": ["self", "other"],
-    "__ge__": ["self", "other"],
-    "__getitem__": ["self", "key"],
-    "__gt__": ["self", "other"],
-    "__hash__": ["self"],
-    "__iadd__": ["self", "other"],
-    "__iand__": ["self", "other"],
-    "__ior__": ["self", "other"],
-    "__isub__": ["self", "other"],
-    "__iter__": ["self"],
-    "__ixor__": ["self", "other"],
-    "__le__": ["self", "other"],
-    "__len__": ["self"],
-    "__lt__": ["self", "other"],
-    "__ne__": ["self", "other"],
-    "__next__": ["self"],
-    "__or__": ["self", "other"],
-    "__reversed__": ["self"],
-    "__setitem__": ["self", "key", "value"],
-    "__sub__": ["self", "other"],
-    "__xor__": ["self", "other"],
-    "add": ["self", "element"],
-    "append": ["self", "element"],
-    "clear": ["self"],
-    "close": ["self"],
-    "count": ["self", "value"],
-    "discard": ["self", "element"],
-    "extend": ["self", "iterable"],
-    "get": ["self", "key", "default=None"],
-    "index": ["self", "value", "start=0", "stop=None"],
-    "insert": ["self", "index", "element"],
-    "isdisjoint": ["self", "other"],
-    "items": ["self"],
-    "keys": ["self"],
-    "pop": ["self", "key=None"],
-    "popitem": ["self"],
-    "remove": ["self", "element"],
-    "reverse": ["self"],
-    "send": ["self", "value"],
-    "setdefault": ["self", "key", "default=None"],
-    "throw": ["self", "type", "value=None", "traceback=None"],
-    "update": ["self", "*args", "**kwargs"],
-    "values": ["self"],
-}

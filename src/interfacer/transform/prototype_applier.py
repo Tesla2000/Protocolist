@@ -10,6 +10,7 @@ from libcst import RemovalSentinel
 
 from ..config import Config
 from .transformer import Transformer
+from ..consts import ANY
 
 
 class PrototypeApplier(Transformer):
@@ -30,11 +31,15 @@ class PrototypeApplier(Transformer):
             return updated_node
         if annotation not in self.annotations:
             return updated_node
-        return updated_node.with_changes(
-            annotation=libcst.parse_module(
-                f"def foo(bar: {self.annotations[annotation]}):\n\tpass"
+        if self.annotations[annotation] != ANY or self.config.allow_any:
+            return updated_node.with_changes(
+                annotation=libcst.parse_module(
+                    f"def foo(bar: {self.annotations[annotation].replace('collections.abc.', '')}):\n\tpass"
+                )
+                .body[0]
+                .params.params[0]
+                .annotation
             )
-            .body[0]
-            .params.params[0]
-            .annotation
+        return updated_node.with_changes(
+            annotation=None
         )
