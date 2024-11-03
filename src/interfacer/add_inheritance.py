@@ -20,7 +20,7 @@ def add_inheritance(file_path: Path, config: Config):
         file_classes.keys(), interface_classes.keys()
     ):
         class_inheritances = re.findall(
-            rf"class {class_name}([^\)^:]*)", file_content
+            fr"class {class_name}([^\)^:]*)", file_content
         )[0]
         class_header = f"class {class_name}{class_inheritances}"
         if class_inheritances:
@@ -42,7 +42,7 @@ def add_inheritance(file_path: Path, config: Config):
         if any(
             map(
                 re.compile(
-                    rf"Cannot instantiate abstract class \"{class_name}\" with abstract attribute"  # noqa: E501
+                    fr"Cannot instantiate abstract class \"{class_name}\" with abstract attribute"  # noqa: E501
                 ).search,
                 exceptions,
             )
@@ -51,7 +51,7 @@ def add_inheritance(file_path: Path, config: Config):
         if any(
             map(
                 re.compile(
-                    rf"Incompatible types in assignment \(expression has type \"[^\"]+\", base class \"{interface_name}\""  # noqa: E501
+                    fr"Incompatible types in assignment \(expression has type \"[^\"]+\", base class \"{interface_name}\""  # noqa: E501
                 ).search,
                 exceptions,
             )

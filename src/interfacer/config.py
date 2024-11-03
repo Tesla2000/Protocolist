@@ -24,6 +24,7 @@ class Config(BaseModel):
     config_file: Optional[Path] = None
     interfaces_path: Path
     interfaces_path_origin: Path
+    allow_any: bool = False
 
     def __init__(self, /, **data: Any):
         data["interfaces_path"] = Path(
