@@ -11,6 +11,7 @@ ANY = "Any"
 exception2method = dict(
     zip(
         (
+            r"Unsupported target for indexed assignment \(\"([^\"]+)\"\)\s+\[index\]",
             r"Value of type \"([^\"]+)\" is not indexable",
             r"has incompatible type \"([^\"]+)\"; expected \"Sized\"",
             r"No overload variant of \"iter\" matches argument type \"([^\"]+)\"",  # noqa: E501
@@ -18,6 +19,7 @@ exception2method = dict(
             r'No overload variant of "next" matches argument type "(?!Literal\[)[^"]+"',  # noqa: E501
         ),
         (
+            "__setitem__(self, index, value)",
             "__getitem__(self, index)",
             "__len__(self)",
             "__iter__(self)",
