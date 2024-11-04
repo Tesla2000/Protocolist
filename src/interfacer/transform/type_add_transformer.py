@@ -28,8 +28,8 @@ from .prototype_applier import PrototypeApplier
 from .transformer import Transformer
 from ..ProtocolDict import ProtocolDict
 from ..config import Config
-from ..consts import import_statement, ANY, abc_method_params, abc_methods, \
-    abc_classes, exception2method
+from ..consts import import_statement, ANY, dunder_method_params, dunder_methods, \
+    abc_classes, exception2method, builtin_types
 from ..get_mypy_exceptions import get_mypy_exceptions
 from ..to_camelcase import to_camelcase
 
@@ -245,7 +245,7 @@ class TypeAddTransformer(Transformer):
             return ANY
         valid_iterfaces = tuple(
             (interface, superclasses)
-            for interface, superclasses, interface_methods in abc_classes
+            for interface, superclasses, interface_methods in abc_classes + builtin_types
             if all(map(interface_methods.__contains__, methods))
         )
         valid_interface_names = tuple(
@@ -263,7 +263,7 @@ class TypeAddTransformer(Transformer):
                                                          f"Literal['{class_name}']",
                                                          interface))).difference(
                 exceptions)
-            return not any(map(re.compile(fr"No overload variant of \"[^\"]+\" of \"{interface}\" matches argument").search, new_exceptions))
+            return not any(re.search(fr"No overload variant of \"[^\"]+\" of \"{interface}\" matches argument", exception) or re.search(" has incompatible type ", exception) for exception in new_exceptions)
         valid_iterfaces = tuple(filter(is_signature_correct, valid_iterfaces))
         protocol = self._create_protocol(class_name, methods)
         rest = self.updated_code.partition(import_statement)[-1]
@@ -274,7 +274,7 @@ class TypeAddTransformer(Transformer):
             return to_camelcase(class_name)
         return f"Union[{', '.join(
             (
-                *tuple(map("collections.abc.".__add__, valid_iterfaces)),
+                *tuple(map(lambda interface: (interface in abc_classes) * "collections.abc." + interface, valid_iterfaces)),
                 to_camelcase(class_name)
             )
         )}]"
@@ -295,10 +295,8 @@ class TypeAddTransformer(Transformer):
             self.protocols[attr_field] += 1
 
         def create_field(attr_field: str) -> str:
-            if attr_field in filter(
-                lambda method: method.startswith("__"), abc_methods
-            ):
-                parameters = ", ".join(abc_method_params[attr_field])
+            if attr_field in dunder_methods:
+                parameters = ", ".join(dunder_method_params[attr_field])
                 return f"def {attr_field}({parameters}):\n\t\t..."
             literal_name = attr_field + str(self.protocols[attr_field])
             return f"{attr_field}: Literal['{literal_name}']"

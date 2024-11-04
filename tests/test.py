@@ -10,6 +10,8 @@ def foo(message) -> None:
         "role3": message.role[0],
         "content": message.content.content,
     }
+    message.role[1] = "foo"
+    assert message.content.string.startswith("a")
     for _ in message.content.content:
         pass
     print(len(message.content.content))
