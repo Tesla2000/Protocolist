@@ -6,32 +6,25 @@ from typing import Iterable
 from typing import Optional
 from typing import Union
 
-from libcst import Annotation
-from libcst import FlattenSentinel
+from classify_imports import Import
+from libcst import FlattenSentinel, ImportFrom
 from libcst import FunctionDef
-from libcst import Index
-from libcst import LeftSquareBracket
 from libcst import MaybeSentinel
 from libcst import Module
-from libcst import Name
 from libcst import Param
 from libcst import RemovalSentinel
-from libcst import RightSquareBracket
-from libcst import SimpleString
-from libcst import SimpleWhitespace
-from libcst import Subscript
-from libcst import SubscriptElement
 from more_itertools import map_reduce
 
-from .class_extractor import ClassExtractor
-from .prototype_applier import PrototypeApplier
-from .transformer import Transformer
-from ..ProtocolDict import ProtocolDict
-from ..config import Config
-from ..consts import import_statement, ANY, dunder_method_params, dunder_methods, \
+from src.interfacer.transform.class_extractor import ClassExtractor
+from src.interfacer.transform.prototype_applier import PrototypeApplier
+from src.interfacer.transform.transformer import Transformer
+from src.interfacer.ProtocolDict import ProtocolDict
+from src.interfacer.config import Config
+from src.interfacer.consts import import_statement, ANY, dunder_method_params, dunder_methods, \
     abc_classes, exception2method, builtin_types
-from ..get_mypy_exceptions import get_mypy_exceptions
-from ..to_camelcase import to_camelcase
+from src.interfacer.get_mypy_exceptions import get_mypy_exceptions
+from src.interfacer.to_camelcase import to_camelcase
+from src.interfacer.protocol_markers.marker.type_marker import TypeMarker
 
 
 class TypeAddTransformer(Transformer):
@@ -42,8 +35,10 @@ class TypeAddTransformer(Transformer):
         self,
         config: Config,
         protocol: ProtocolDict,
+        types_marker: TypeMarker
     ):
         super().__init__(config)
+        self.types_marker = types_marker
         self.protocols = protocol
         self.temp_python_file = self.config.mypy_folder / "_temp.py"
         self.annotations = {}
@@ -279,8 +274,6 @@ class TypeAddTransformer(Transformer):
             )
         )}]"
 
-
-
     def _get_function_signature(
         self, function_name: str, updated_code: str
     ) -> str:
@@ -311,59 +304,12 @@ class TypeAddTransformer(Transformer):
     ) -> Union[
         "Param", MaybeSentinel, FlattenSentinel["Param"], RemovalSentinel
     ]:
-        if updated_node.annotation is None:
-            param_name = updated_node.name.value
-            if param_name == "self":
-                return updated_node
-            self.protocols[param_name] += 1
-            self.annotations[param_name + str(self.protocols[param_name])] = (
-                None
-            )
-            return updated_node.with_changes(
-                annotation=Annotation(
-                    annotation=Subscript(
-                        value=Name(
-                            value="Literal",
-                            lpar=[],
-                            rpar=[],
-                        ),
-                        slice=[
-                            SubscriptElement(
-                                slice=Index(
-                                    value=SimpleString(
-                                        value=f"'{updated_node.name.value}"
-                                        f"{self.protocols[param_name]}'",
-                                        lpar=[],
-                                        rpar=[],
-                                    ),
-                                    star=None,
-                                    whitespace_after_star=None,
-                                ),
-                                comma=MaybeSentinel.DEFAULT,
-                            ),
-                        ],
-                        lbracket=LeftSquareBracket(
-                            whitespace_after=SimpleWhitespace(
-                                value="",
-                            ),
-                        ),
-                        rbracket=RightSquareBracket(
-                            whitespace_before=SimpleWhitespace(
-                                value="",
-                            ),
-                        ),
-                        lpar=[],
-                        rpar=[],
-                        whitespace_after_value=SimpleWhitespace(
-                            value="",
-                        ),
-                    ),
-                    whitespace_before_indicator=SimpleWhitespace(
-                        value="",
-                    ),
-                    whitespace_after_indicator=SimpleWhitespace(
-                        value=" ",
-                    ),
-                )
-            )
-        return updated_node
+        return self.types_marker.conv_parameter(updated_node, self.protocols, self.annotations)
+
+    def visit_Import(self, node: "Import") -> Optional[bool]:
+        self.types_marker.register_import(node)
+        return super().visit_Import(node)
+
+    def visit_ImportFrom(self, node: "ImportFrom") -> Optional[bool]:
+        self.types_marker.register_import(node)
+        return super().visit_ImportFrom(node)

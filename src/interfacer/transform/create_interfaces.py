@@ -7,9 +7,10 @@ from pathlib import Path
 import libcst as cst
 from mypy.memprofile import defaultdict
 
-from ..config import Config
 from .type_add_transformer import TypeAddTransformer
+from ..config import Config
 from ..consts import ANY
+from ..protocol_markers.types_marker_factory import create_type_marker
 
 
 def create_interfaces(
@@ -17,15 +18,12 @@ def create_interfaces(
 ) -> int:
     code = filepath.read_text()
     module = cst.parse_module(code)
-    transformer = TypeAddTransformer(config, protocols)
+    transformer = TypeAddTransformer(config, protocols, create_type_marker(config))
     new_code = module.visit(transformer).code
-    interface_path = ".".join(
-        config.interfaces_path.relative_to(os.getcwd()).with_suffix("").parts
-    )
     new_code = (
         "".join(
             set(
-                f"from {interface_path} import {annotation}\n"
+                f"from {config.interface_import_path} import {annotation}\n"
                 for annotation in chain.from_iterable(map(_split_annotations, transformer.annotations.values()))
                 if annotation != ANY or config.allow_any
             )

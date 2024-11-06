@@ -59,13 +59,10 @@ def add_inheritance(file_path: Path, config: Config):
             continue
         file_content = updated_file_content
         inheritances.append((class_name, interface_name))
-    interface_path = ".".join(
-        config.interfaces_path.relative_to(os.getcwd()).with_suffix("").parts
-    )
     file_content = (
         "".join(
             set(
-                f"from {interface_path} import {superclass}\n"
+                f"from {config.interface_import_path} import {superclass}\n"
                 for _, superclass in inheritances
             )
         )
