@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 from typing import Optional
@@ -27,6 +28,7 @@ class Config(BaseModel):
     interfaces_path_origin: Path
     allow_any: bool = False
     mark_option: MarkOption = MarkOption.INTERFACE
+    external_libraries: Optional[Iterable[str]] = None
 
     def __init__(self, /, **data: Any):
         data["interfaces_path"] = Path(
@@ -40,8 +42,7 @@ class Config(BaseModel):
     @property
     def interface_import_path(self):
         return ".".join(
-            self.interfaces_path.relative_to(os.getcwd()).with_suffix(
-                "").parts
+            self.interfaces_path.relative_to(os.getcwd()).with_suffix("").parts
         )
 
 

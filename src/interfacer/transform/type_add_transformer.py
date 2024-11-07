@@ -244,8 +244,9 @@ class TypeAddTransformer(ImportVisitingTransformer):
             return ANY
         valid_iterfaces = tuple(
             (interface, superclasses)
-            for interface, superclasses, interface_methods in abc_classes
-            + builtin_types
+            for interface, superclasses, interface_methods in (
+                abc_classes + builtin_types
+            )
             if all(map(interface_methods.__contains__, methods))
         )
         valid_interface_names = tuple(
