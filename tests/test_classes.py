@@ -5,14 +5,13 @@ from typing import Collection
 from typing import Union
 
 from interfaces.interfaces import Any
-from interfaces.interfaces import Content2
 
 
-class Content:
+class Content(str):
     content: Collection
 
 
-class Role(Content2):
+class Role(str):
     def __len__(self) -> int:
         return 1
 

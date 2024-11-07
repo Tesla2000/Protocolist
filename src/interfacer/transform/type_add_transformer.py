@@ -6,8 +6,7 @@ from typing import Iterable
 from typing import Optional
 from typing import Union
 
-from classify_imports import Import
-from libcst import FlattenSentinel, ImportFrom
+from libcst import FlattenSentinel
 from libcst import FunctionDef
 from libcst import MaybeSentinel
 from libcst import Module
@@ -15,30 +14,34 @@ from libcst import Param
 from libcst import RemovalSentinel
 from more_itertools import map_reduce
 
-from src.interfacer.transform.class_extractor import ClassExtractor
-from src.interfacer.transform.prototype_applier import PrototypeApplier
-from src.interfacer.transform.transformer import Transformer
-from src.interfacer.ProtocolDict import ProtocolDict
 from src.interfacer.config import Config
-from src.interfacer.consts import import_statement, ANY, dunder_method_params, dunder_methods, \
-    abc_classes, exception2method, builtin_types
+from src.interfacer.consts import abc_classes
+from src.interfacer.consts import ANY
+from src.interfacer.consts import builtin_types
+from src.interfacer.consts import dunder_method_params
+from src.interfacer.consts import dunder_methods
+from src.interfacer.consts import exception2method
+from src.interfacer.consts import import_statement
 from src.interfacer.get_mypy_exceptions import get_mypy_exceptions
-from src.interfacer.to_camelcase import to_camelcase
 from src.interfacer.protocol_markers.marker.type_marker import TypeMarker
+from src.interfacer.ProtocolDict import ProtocolDict
+from src.interfacer.to_camelcase import to_camelcase
+from src.interfacer.transform.class_extractor import ClassExtractor
+from src.interfacer.transform.import_visiting_transformer import (
+    ImportVisitingTransformer,
+)
+from src.interfacer.transform.prototype_applier import PrototypeApplier
 
 
-class TypeAddTransformer(Transformer):
+class TypeAddTransformer(ImportVisitingTransformer):
     updated_code: str
     annotations: dict[str, Optional[str]]
 
     def __init__(
-        self,
-        config: Config,
-        protocol: ProtocolDict,
-        types_marker: TypeMarker
+        self, config: Config, protocol: ProtocolDict, types_marker: TypeMarker
     ):
-        super().__init__(config)
-        self.types_marker = types_marker
+        super().__init__(types_marker)
+        self.config = config
         self.protocols = protocol
         self.temp_python_file = self.config.mypy_folder / "_temp.py"
         self.annotations = {}
@@ -70,7 +73,7 @@ class TypeAddTransformer(Transformer):
                     self.annotations[protocol] = interface
             if len(protocol_items) == len(tuple(self.protocols.items())):
                 break
-        self.save_prototypes()
+        self.save_protocols()
         return self._update_parameters(updated_node)
 
     def _update_parameters(self, updated_node: FunctionDef) -> FunctionDef:
@@ -82,9 +85,9 @@ class TypeAddTransformer(Transformer):
         assert isinstance(function_def, FunctionDef)
         return function_def
 
-    def save_prototypes(self):
-        prototypes = self._get_created_prototypes()
-        for prototype_code in prototypes.values():
+    def save_protocols(self):
+        protocols = self._get_created_prototypes()
+        for prototype_code in protocols.values():
             self.updated_code = self.updated_code.replace(
                 prototype_code.replace(4 * " ", "\t"), "", 1
             )
@@ -94,14 +97,16 @@ class TypeAddTransformer(Transformer):
         interface_code = (
             import_statement
             + "\n".join(
-                map("@runtime_checkable\n{}".format, prototypes.values())
+                map("@runtime_checkable\n{}".format, protocols.values())
             )
             + interface_code.replace(import_statement, "", 1)
         )
         self.config.interfaces_path.write_text(interface_code)
 
     def _get_created_prototypes(self) -> dict[str, str]:
-        return ClassExtractor.extract_classes(self.updated_code)
+        return ClassExtractor(self.type_marker).extract_classes(
+            self.updated_code
+        )
 
     def _add_conv_attribute_to_method(self):
         exceptions = get_mypy_exceptions(
@@ -149,13 +154,12 @@ class TypeAddTransformer(Transformer):
                     ),
                 )
                 hint = self._handle_incompatible_type(
-                        function_name, exceptions
-                    )
+                    function_name, exceptions
+                )
                 if hint != ANY or self.config.allow_any:
                     self.updated_code = self.updated_code.replace(
                         function_signature,
-                        function_signature
-                        + f", arg{n_args}: {hint}",
+                        function_signature + f", arg{n_args}: {hint}",
                     )
                 exceptions = get_mypy_exceptions(
                     self.temp_python_file, self.updated_code
@@ -240,7 +244,8 @@ class TypeAddTransformer(Transformer):
             return ANY
         valid_iterfaces = tuple(
             (interface, superclasses)
-            for interface, superclasses, interface_methods in abc_classes + builtin_types
+            for interface, superclasses, interface_methods in abc_classes
+            + builtin_types
             if all(map(interface_methods.__contains__, methods))
         )
         valid_interface_names = tuple(
@@ -253,12 +258,23 @@ class TypeAddTransformer(Transformer):
         )
 
         def is_signature_correct(interface: str) -> bool:
-            new_exceptions = set(get_mypy_exceptions(self.temp_python_file,
-                                                     self.updated_code.replace(
-                                                         f"Literal['{class_name}']",
-                                                         interface))).difference(
-                exceptions)
-            return not any(re.search(fr"No overload variant of \"[^\"]+\" of \"{interface}\" matches argument", exception) or re.search(" has incompatible type ", exception) for exception in new_exceptions)
+            new_exceptions = set(
+                get_mypy_exceptions(
+                    self.temp_python_file,
+                    self.updated_code.replace(
+                        f"Literal['{class_name}']", interface
+                    ),
+                )
+            ).difference(exceptions)
+            return not any(
+                re.search(
+                    rf"No overload variant of \"[^\"]+\" of \"{interface}\" matches argument",  # noqa: E501
+                    exception,
+                )
+                or re.search(" has incompatible type ", exception)
+                for exception in new_exceptions
+            )
+
         valid_iterfaces = tuple(filter(is_signature_correct, valid_iterfaces))
         protocol = self._create_protocol(class_name, methods)
         rest = self.updated_code.partition(import_statement)[-1]
@@ -269,7 +285,11 @@ class TypeAddTransformer(Transformer):
             return to_camelcase(class_name)
         return f"Union[{', '.join(
             (
-                *tuple(map(lambda interface: (interface in abc_classes) * "collections.abc." + interface, valid_iterfaces)),
+                *tuple(
+                    map(lambda interface: (interface in abc_classes) * "collections.abc." + interface,  # noqa: E501
+                        valid_iterfaces
+                        )
+                ),
                 to_camelcase(class_name)
             )
         )}]"
@@ -304,12 +324,6 @@ class TypeAddTransformer(Transformer):
     ) -> Union[
         "Param", MaybeSentinel, FlattenSentinel["Param"], RemovalSentinel
     ]:
-        return self.types_marker.conv_parameter(updated_node, self.protocols, self.annotations)
-
-    def visit_Import(self, node: "Import") -> Optional[bool]:
-        self.types_marker.register_import(node)
-        return super().visit_Import(node)
-
-    def visit_ImportFrom(self, node: "ImportFrom") -> Optional[bool]:
-        self.types_marker.register_import(node)
-        return super().visit_ImportFrom(node)
+        return self.type_marker.conv_parameter(
+            updated_node, self.protocols, self.annotations
+        )
