@@ -13,6 +13,7 @@ from pydantic import Field
 from pydantic_core import PydanticUndefined
 
 from .custom_argument_parser import CustomArgumentParser
+from .protocol_markers.mark_options import MarkOption
 
 load_dotenv()
 
@@ -25,6 +26,7 @@ class Config(BaseModel):
     interfaces_path: Path
     interfaces_path_origin: Path
     allow_any: bool = False
+    mark_option: MarkOption = MarkOption.INTERFACE
 
     def __init__(self, /, **data: Any):
         data["interfaces_path"] = Path(
@@ -34,6 +36,13 @@ class Config(BaseModel):
         )
         data["interfaces_path_origin"] = data["interfaces_path"].parent
         super().__init__(**data)
+
+    @property
+    def interface_import_path(self):
+        return ".".join(
+            self.interfaces_path.relative_to(os.getcwd()).with_suffix(
+                "").parts
+        )
 
 
 def parse_arguments(config_class: Type[Config]):

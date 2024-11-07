@@ -7,11 +7,11 @@ from typing import Union
 from interfaces.interfaces import Any
 
 
-class Content:
+class Content(str):
     content: Collection
 
 
-class Role:
+class Role(str):
     def __len__(self) -> int:
         return 1
 
