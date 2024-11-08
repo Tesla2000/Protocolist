@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 from dataclasses import dataclass
 from functools import lru_cache
 from importlib import import_module
@@ -8,10 +9,9 @@ from itertools import chain
 from types import ModuleType
 from typing import Any
 from typing import Iterable
+from typing import Iterator
 from typing import Optional
 from typing import Sequence
-
-from more_itertools import map_except
 
 from src.interfacer.consts import abc_classes
 from src.interfacer.consts import builtin_types
@@ -23,13 +23,19 @@ class ExternalLibElement:
     module: ModuleType
     item: Any = None
     module_name: str = None
-    fields: Sequence[str] = None
+    fields: list[str] = None
     superclasses: frozenset[str] = None
 
     def __post_init__(self):
+        if self.item_name in getattr(
+            inspect.getmodule(self.item), "__all__", tuple()
+        ):
+            self.module = inspect.getmodule(self.item)
         self.item = getattr(self.module, self.item_name)
         self.module_name = self.module.__name__
         self.fields = dir(self.item)
+        if self.item.__hash__ is None:
+            self.fields.remove("__hash__")
         self.superclasses = frozenset(
             chain.from_iterable(
                 (interface, *superclasses)
@@ -39,25 +45,69 @@ class ExternalLibElement:
                 if all(map(self.fields.__contains__, interface_methods))
             )
         )
-        if self.item.__hash__ is None:
-            self.superclasses = frozenset(
-                class_ for class_ in self.superclasses if class_ != "Hashable"
-            )
+
+
+def _get_modules_recursively(
+    module_names: Iterable[str],
+) -> Iterator[ModuleType]:
+    for module_name in module_names:
+        try:
+            module = import_module(module_name)
+        except ModuleNotFoundError:
+            continue
+        yield module
+        yield from _get_modules_recursively(
+            f"{module_name}.{attr}"
+            for attr in dir(module)
+            if isinstance(getattr(module, attr), ModuleType)
+            and attr in getattr(module, "__all__", tuple())
+        )
 
 
 @lru_cache
-def get_external_library_classes(
+def _get_external_library_classes(
     external_libraries: Optional[Iterable[str]],
-) -> list[ExternalLibElement]:
+) -> Iterable[ExternalLibElement]:
     if external_libraries is None:
         external_libraries = packages_distributions().keys()
-    modules = tuple(
-        map_except(import_module, external_libraries, ModuleNotFoundError)
+    modules = set(_get_modules_recursively(external_libraries))
+    return {
+        elem.item: elem
+        for elem in (
+            ExternalLibElement(item_name, module)
+            for module in modules
+            for item_name in dir(module)
+            if not item_name.startswith("_")
+            and isinstance(getattr(module, item_name), type)
+            and item_name in getattr(module, "__all__", tuple())
+        )
+    }.values()
+
+
+def get_external_library_classes(
+    external_libraries: Optional[Iterable[str]],
+    required_methods: Sequence[str],
+    valid_iterfaces: Sequence[str],
+) -> Sequence[ExternalLibElement]:
+    independent_external_lib_elements = tuple(
+        filter(
+            lambda element: all(
+                map(element.fields.__contains__, required_methods)
+            )
+            and not any(
+                map(element.superclasses.__contains__, valid_iterfaces)
+            ),
+            _get_external_library_classes(external_libraries),
+        )
     )
-    return list(
-        ExternalLibElement(item_name, module)
-        for module in modules
-        for item_name in dir(module)
-        if not item_name.startswith("_")
-        and isinstance(getattr(module, item_name), type)
+    independent_items = tuple(
+        map(lambda element: element.item, independent_external_lib_elements)
+    )
+    return tuple(
+        filter(
+            lambda element: not any(
+                map(independent_items.__contains__, element.item.__bases__)
+            ),
+            independent_external_lib_elements,
+        )
     )

@@ -21,6 +21,10 @@ def create_interfaces(
         config, protocols, create_type_marker(config)
     )
     new_code = module.visit(transformer).code
+    assert len(transformer.imports) == len(
+        dict(transformer.imports)
+    ), "We don't support that yet. Contact Protocolist creator please"
+    external_imports = dict(transformer.imports)
     new_code = (
         "".join(
             set(
@@ -28,7 +32,13 @@ def create_interfaces(
                 for annotation in chain.from_iterable(
                     map(_split_annotations, transformer.annotations.values())
                 )
-                if annotation != ANY or config.allow_any
+                if (annotation != ANY or config.allow_any)
+                and annotation not in external_imports
+            ).union(
+                set(
+                    f"from {module_name} import {item_name}\n"
+                    for item_name, module_name in external_imports.items()
+                )
             )
         )
         + new_code

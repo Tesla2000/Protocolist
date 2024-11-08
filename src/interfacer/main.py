@@ -1,14 +1,13 @@
 from __future__ import annotations
 
 import os
-from collections import defaultdict
 from pathlib import Path
 
-from .ProtocolDict import ProtocolDict
 from .add_inheritance import add_inheritance
 from .config import Config
 from .config import create_config_with_args
 from .config import parse_arguments
+from .ProtocolDict import ProtocolDict
 from .transform.create_interfaces import create_interfaces
 
 
@@ -33,5 +32,12 @@ def main() -> int:
             filepath,
             config=config,
         )
-    fail |= os.system(f"reorder-python-imports {' '.join(config.pos_args)}")
+    fail |= os.system(
+        f"reorder-python-imports {' '.join(config.pos_args)} "
+        f"{config.interfaces_path.absolute()}"
+    )
+    fail |= os.system(
+        f"autoflake --in-place --remove-all-unused-imports "
+        f"{' '.join(config.pos_args)} {config.interfaces_path.absolute()}"
+    )
     return fail
