@@ -4,7 +4,8 @@ from functools import reduce
 from operator import itemgetter
 
 import_statement = (
-    "import collections.abc\nfrom collections.abc import *\nfrom typing import Literal, "
+    "import collections.abc\nfrom collections.abc import *\n"
+    "from typing import *\nfrom typing import Literal, "
     "Protocol, Union, Any, runtime_checkable\n"
 )
 ANY = "Any"

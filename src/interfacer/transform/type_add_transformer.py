@@ -22,6 +22,10 @@ from src.interfacer.consts import dunder_method_params
 from src.interfacer.consts import dunder_methods
 from src.interfacer.consts import exception2method
 from src.interfacer.consts import import_statement
+from src.interfacer.get_external_library_classes import ExternalLibElement
+from src.interfacer.get_external_library_classes import (
+    get_external_library_classes,
+)  # noqa: E501
 from src.interfacer.get_mypy_exceptions import get_mypy_exceptions
 from src.interfacer.protocol_markers.marker.type_marker import TypeMarker
 from src.interfacer.ProtocolDict import ProtocolDict
@@ -45,6 +49,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         self.protocols = protocol
         self.temp_python_file = self.config.mypy_folder / "_temp.py"
         self.annotations = {}
+        self.imports = set()
 
     def leave_FunctionDef(
         self, original_node: "FunctionDef", updated_node: "FunctionDef"
@@ -91,15 +96,23 @@ class TypeAddTransformer(ImportVisitingTransformer):
             self.updated_code = self.updated_code.replace(
                 prototype_code.replace(4 * " ", "\t"), "", 1
             )
-        interface_code = ""
+        interface_code = import_statement
         if self.config.interfaces_path.exists():
-            interface_code = self.config.interfaces_path.read_text()
+            interface_code = (
+                self.config.interfaces_path.read_text() or interface_code
+            )
         interface_code = (
-            import_statement
+            interface_code.partition("@runtime_checkable")[0]
+            + "".join(
+                set(
+                    f"from {module_name} import {item_name}\n"
+                    for item_name, module_name in dict(self.imports).items()
+                )
+            )
             + "\n".join(
                 map("@runtime_checkable\n{}".format, protocols.values())
             )
-            + interface_code.replace(import_statement, "", 1)
+            + "".join(interface_code.partition("@runtime_checkable")[1:])
         )
         self.config.interfaces_path.write_text(interface_code)
 
@@ -244,8 +257,9 @@ class TypeAddTransformer(ImportVisitingTransformer):
             return ANY
         valid_iterfaces = tuple(
             (interface, superclasses)
-            for interface, superclasses, interface_methods in abc_classes
-            + builtin_types
+            for interface, superclasses, interface_methods in (
+                abc_classes + builtin_types
+            )
             if all(map(interface_methods.__contains__, methods))
         )
         valid_interface_names = tuple(
@@ -256,14 +270,18 @@ class TypeAddTransformer(ImportVisitingTransformer):
             for interface, superclasses in valid_iterfaces
             if not any(map(valid_interface_names.__contains__, superclasses))
         )
+        external_lib_entries = get_external_library_classes(
+            self.config.external_libraries,
+            self.config.excluded_libraries,
+            methods,
+            valid_iterfaces,
+        )
 
-        def is_signature_correct(interface: str) -> bool:
+        def is_signature_correct(interface: str, updated_code: str) -> bool:
             new_exceptions = set(
                 get_mypy_exceptions(
                     self.temp_python_file,
-                    self.updated_code.replace(
-                        f"Literal['{class_name}']", interface
-                    ),
+                    updated_code,
                 )
             ).difference(exceptions)
             return not any(
@@ -275,19 +293,58 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 for exception in new_exceptions
             )
 
-        valid_iterfaces = tuple(filter(is_signature_correct, valid_iterfaces))
+        def is_interface_valid(interface: str) -> bool:
+            return is_signature_correct(
+                interface,
+                self.updated_code.replace(
+                    f"Literal['{class_name}']", interface
+                ),
+            )
+
+        def is_external_lib_valid(element: ExternalLibElement) -> bool:
+            return is_signature_correct(
+                element.item_name,
+                f"from {element.module_name} import {element.item_name}\n"
+                + self.updated_code.replace(
+                    f"Literal['{class_name}']", element.item_name
+                ),
+            )
+
+        valid_iterfaces = tuple(filter(is_interface_valid, valid_iterfaces))
+        valid_external_lib_entries = tuple(
+            filter(is_external_lib_valid, external_lib_entries)
+        )
+        self.imports.update(
+            frozenset(
+                (entry.item_name, entry.module_name)
+                for entry in valid_external_lib_entries
+            )
+        )
         protocol = self._create_protocol(class_name, methods)
         rest = self.updated_code.partition(import_statement)[-1]
         self.updated_code = "\n".join(
-            (import_statement.strip(), protocol.strip(), rest.strip())
+            (
+                import_statement.strip(),
+                "\n".join(
+                    f"from {entry.module_name} import {entry.item_name}"
+                    for entry in valid_external_lib_entries
+                ),
+                protocol.strip(),
+                rest.strip(),
+            )
         )
-        if not len(valid_iterfaces):
+        if not valid_iterfaces and not valid_external_lib_entries:
             return to_camelcase(class_name)
         return f"Union[{', '.join(
             (
                 *tuple(
                     map(lambda interface: (interface in abc_classes) * "collections.abc." + interface,  # noqa: E501
                         valid_iterfaces
+                        )
+                ),
+                *tuple(
+                    map(lambda entry: entry.item_name,
+                        valid_external_lib_entries
                         )
                 ),
                 to_camelcase(class_name)
