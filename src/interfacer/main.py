@@ -8,12 +8,18 @@ from .config import Config
 from .config import create_config_with_args
 from .config import parse_arguments
 from .ProtocolDict import ProtocolDict
+from .transaction import transation
 from .transform.create_interfaces import create_interfaces
 
 
 def main() -> int:
     args = parse_arguments(Config)
     config = create_config_with_args(Config, args)
+    with transation(config.pos_args):
+        return _main(config)
+
+
+def _main(config: Config) -> int:
     config.interfaces_path.write_text("")
     # fail = apply_pytype(config)
     fail = 0

@@ -271,7 +271,10 @@ class TypeAddTransformer(ImportVisitingTransformer):
             if not any(map(valid_interface_names.__contains__, superclasses))
         )
         external_lib_entries = get_external_library_classes(
-            self.config.external_libraries, methods, valid_iterfaces
+            self.config.external_libraries,
+            self.config.excluded_libraries,
+            methods,
+            valid_iterfaces,
         )
 
         def is_signature_correct(interface: str, updated_code: str) -> bool:
@@ -311,7 +314,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         valid_external_lib_entries = tuple(
             filter(is_external_lib_valid, external_lib_entries)
         )
-        self.imports = self.imports.union(
+        self.imports.update(
             frozenset(
                 (entry.item_name, entry.module_name)
                 for entry in valid_external_lib_entries

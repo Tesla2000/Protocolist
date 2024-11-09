@@ -29,6 +29,7 @@ class Config(BaseModel):
     allow_any: bool = False
     mark_option: MarkOption = MarkOption.INTERFACE
     external_libraries: Optional[Iterable[str]] = None
+    excluded_libraries: Iterable[str] = tuple()
 
     def __init__(self, /, **data: Any):
         data["interfaces_path"] = Path(
@@ -38,6 +39,9 @@ class Config(BaseModel):
         )
         data["interfaces_path_origin"] = data["interfaces_path"].parent
         super().__init__(**data)
+        self.excluded_libraries = frozenset(self.excluded_libraries).union(
+            {"networkx.utils.configs"}
+        )
 
     @property
     def interface_import_path(self):

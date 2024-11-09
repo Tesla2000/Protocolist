@@ -27,6 +27,7 @@ class ExternalLibElement:
     superclasses: frozenset[str] = None
 
     def __post_init__(self):
+        self.item = getattr(self.module, self.item_name)
         if self.item_name in getattr(
             inspect.getmodule(self.item), "__all__", tuple()
         ):
@@ -49,6 +50,7 @@ class ExternalLibElement:
 
 def _get_modules_recursively(
     module_names: Iterable[str],
+    excluded_libraries: Iterable[str],
 ) -> Iterator[ModuleType]:
     for module_name in module_names:
         try:
@@ -57,20 +59,26 @@ def _get_modules_recursively(
             continue
         yield module
         yield from _get_modules_recursively(
-            f"{module_name}.{attr}"
-            for attr in dir(module)
-            if isinstance(getattr(module, attr), ModuleType)
-            and attr in getattr(module, "__all__", tuple())
+            (
+                f"{module_name}.{attr}"
+                for attr in dir(module)
+                if isinstance(getattr(module, attr), ModuleType)
+                and f"{module_name}.{attr}" not in excluded_libraries
+            ),
+            excluded_libraries,
         )
 
 
 @lru_cache
 def _get_external_library_classes(
     external_libraries: Optional[Iterable[str]],
+    excluded_libraries: Iterable[str],
 ) -> Iterable[ExternalLibElement]:
     if external_libraries is None:
         external_libraries = packages_distributions().keys()
-    modules = set(_get_modules_recursively(external_libraries))
+    modules = set(
+        _get_modules_recursively(external_libraries, excluded_libraries)
+    )
     return {
         elem.item: elem
         for elem in (
@@ -86,6 +94,7 @@ def _get_external_library_classes(
 
 def get_external_library_classes(
     external_libraries: Optional[Iterable[str]],
+    excluded_libraries: Iterable[str],
     required_methods: Sequence[str],
     valid_iterfaces: Sequence[str],
 ) -> Sequence[ExternalLibElement]:
@@ -97,7 +106,9 @@ def get_external_library_classes(
             and not any(
                 map(element.superclasses.__contains__, valid_iterfaces)
             ),
-            _get_external_library_classes(external_libraries),
+            _get_external_library_classes(
+                external_libraries, excluded_libraries
+            ),
         )
     )
     independent_items = tuple(

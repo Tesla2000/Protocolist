@@ -100,7 +100,7 @@ class TypeMarker(ABC):
                 .partition(" import ")
             )
             if import_path == self.config.interface_import_path:
-                self.imported_interfaces = self.imported_interfaces.union(
+                self.imported_interfaces.update(
                     set(imported_elements.split(", ")).difference({"Any"})
                 )
 
