@@ -23,7 +23,7 @@ class ClassExtractor(ImportVisitingTransformer):
         class_name = node.name.value
         self.classes[class_name] = self.classes.get(
             class_name, Module([node]).code
-        )
+        ).lstrip()
         return super().visit_ClassDef(node)
 
     def extract_classes(self, code) -> dict[str, str]:

@@ -12,7 +12,7 @@ from ..protocol_markers.types_marker_factory import create_type_marker
 from .type_add_transformer import TypeAddTransformer
 
 
-def create_interfaces(
+def create_protocols(
     filepath: Path, config: Config, protocols: defaultdict[int]
 ) -> int:
     code = filepath.read_text()

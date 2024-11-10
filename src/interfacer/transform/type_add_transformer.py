@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import string
-from typing import Iterable
+from collections.abc import Iterable
 from typing import Optional
 from typing import Union
 
@@ -91,7 +91,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         return function_def
 
     def save_protocols(self):
-        protocols = self._get_created_prototypes()
+        protocols = self._get_created_protocals()
         for prototype_code in protocols.values():
             self.updated_code = self.updated_code.replace(
                 prototype_code.replace(4 * " ", "\t"), "", 1
@@ -110,13 +110,16 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 )
             )
             + "\n".join(
-                map("@runtime_checkable\n{}".format, protocols.values())
+                map(
+                    "@runtime_checkable\n{}".format,
+                    map(str.lstrip, protocols.values()),
+                )
             )
             + "".join(interface_code.partition("@runtime_checkable")[1:])
         )
         self.config.interfaces_path.write_text(interface_code)
 
-    def _get_created_prototypes(self) -> dict[str, str]:
+    def _get_created_protocals(self) -> dict[str, str]:
         return ClassExtractor(self.type_marker).extract_classes(
             self.updated_code
         )

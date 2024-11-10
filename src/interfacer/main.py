@@ -7,9 +7,10 @@ from .add_inheritance import add_inheritance
 from .config import Config
 from .config import create_config_with_args
 from .config import parse_arguments
+from .presentation_option.protocol_saver_factory import create_protocol_saver
 from .ProtocolDict import ProtocolDict
 from .transaction import transation
-from .transform.create_interfaces import create_interfaces
+from .transform.create_protocols import create_protocols
 
 
 def main() -> int:
@@ -28,11 +29,12 @@ def _main(config: Config) -> int:
     )
     protocols = ProtocolDict(int)
     for filepath in paths:
-        fail |= create_interfaces(
+        fail |= create_protocols(
             filepath,
             config=config,
             protocols=protocols,
         )
+    create_protocol_saver(config).modify_protocols()
     for filepath in paths:
         fail |= add_inheritance(
             filepath,
