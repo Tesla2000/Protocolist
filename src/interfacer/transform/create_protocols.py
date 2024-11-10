@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 from itertools import chain
 from pathlib import Path
 
@@ -20,7 +21,11 @@ def create_protocols(
     transformer = TypeAddTransformer(
         config, protocols, create_type_marker(config)
     )
-    new_code = module.visit(transformer).code
+    try:
+        new_code = module.visit(transformer).code
+    except Exception:
+        traceback.print_exc()
+        raise
     assert len(transformer.imports) == len(
         dict(transformer.imports)
     ), "We don't support that yet. Contact Protocolist creator please"

@@ -27,7 +27,3 @@ class InterfaceTypeMarker(TypeMarker):
                 )
             )
         return updated_node
-
-    @property
-    def marked_types(self) -> set[str]:
-        return self.imported_interfaces

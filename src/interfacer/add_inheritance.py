@@ -79,5 +79,7 @@ def add_inheritance(file_path: Path, config: Config):
         + file_content
     )
     result = file_content != file_path.read_text()
+    if result:
+        print(f"File {file_path} was modified")
     file_path.write_text(file_content)
     return result

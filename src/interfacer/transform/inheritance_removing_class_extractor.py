@@ -14,7 +14,7 @@ from src.interfacer.transform.class_extractor import ClassExtractor
 class InheritanceRemovingClassExtractor(ClassExtractor):
     def __init__(self, type_marker: TypeMarker):
         super().__init__(type_marker)
-        self.updated_model = None
+        self.updated_module = None
 
     def leave_ClassDef(
         self, original_node: "ClassDef", updated_node: "ClassDef"
@@ -25,7 +25,7 @@ class InheritanceRemovingClassExtractor(ClassExtractor):
         )
         bases = tuple(
             filter(
-                lambda arg: arg.value.value
+                lambda arg: getattr(arg.value, "value", None)
                 not in self.type_marker.imported_interfaces,
                 updated_node.bases,
             )

@@ -103,8 +103,3 @@ class TypeMarker(ABC):
                 self.imported_interfaces.update(
                     set(imported_elements.split(", ")).difference({"Any"})
                 )
-
-    @property
-    @abstractmethod
-    def marked_types(self) -> set[str]:
-        pass
