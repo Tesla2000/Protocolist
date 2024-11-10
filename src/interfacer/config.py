@@ -11,9 +11,11 @@ import toml
 from dotenv import load_dotenv
 from pydantic import BaseModel
 from pydantic import Field
+from pydantic.v1 import PositiveInt
 from pydantic_core import PydanticUndefined
 
 from .custom_argument_parser import CustomArgumentParser
+from .presentation_option.presentation_option import PresentationOption
 from .protocol_markers.mark_options import MarkOption
 
 load_dotenv()
@@ -28,8 +30,12 @@ class Config(BaseModel):
     interfaces_path_origin: Path
     allow_any: bool = False
     mark_option: MarkOption = MarkOption.INTERFACE
+    protocol_presentation: PresentationOption = (
+        PresentationOption.PARTIAL_PROTOCOLS
+    )
     external_libraries: Optional[Iterable[str]] = None
     excluded_libraries: Iterable[str] = tuple()
+    tab_length: PositiveInt = 4
 
     def __init__(self, /, **data: Any):
         data["interfaces_path"] = Path(

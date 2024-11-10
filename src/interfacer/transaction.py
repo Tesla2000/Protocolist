@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+from collections.abc import Iterable
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Iterable
 
 
 @contextmanager
@@ -14,3 +14,4 @@ def transation(pos_args: Iterable[str]):
     except BaseException:
         for path, content in zip(paths, contents):
             path.write_text(content)
+        raise
