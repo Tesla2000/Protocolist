@@ -8,6 +8,7 @@ from typing import Union
 
 from libcst import FlattenSentinel
 from libcst import FunctionDef
+from libcst import Lambda
 from libcst import MaybeSentinel
 from libcst import Module
 from libcst import Param
@@ -50,6 +51,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         self.temp_python_file = self.config.mypy_folder / "_temp.py"
         self.annotations = {}
         self.imports = set()
+        self._lambda_params = set()
 
     def leave_FunctionDef(
         self, original_node: "FunctionDef", updated_node: "FunctionDef"
@@ -176,6 +178,11 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     self.updated_code = self.updated_code.replace(
                         function_signature,
                         function_signature + f", arg{n_args}: {hint}",
+                    )
+                else:
+                    self.updated_code = self.updated_code.replace(
+                        function_signature,
+                        function_signature + f", arg{n_args}",
                     )
                 exceptions = get_mypy_exceptions(
                     self.temp_python_file, self.updated_code
@@ -384,6 +391,12 @@ class TypeAddTransformer(ImportVisitingTransformer):
     ) -> Union[
         "Param", MaybeSentinel, FlattenSentinel["Param"], RemovalSentinel
     ]:
+        if original_node in self._lambda_params:
+            return updated_node
         return self.type_marker.conv_parameter(
             updated_node, self.protocols, self.annotations
         )
+
+    def visit_Lambda_params(self, node: "Lambda") -> None:
+        self._lambda_params.update(set(node.params.params))
+        return super().visit_Lambda_params(node)
