@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import re
-import string
 from collections.abc import Iterable
 from typing import Optional
 from typing import Union
@@ -76,8 +75,8 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     f"Literal['{protocol}']", interface
                 )
                 self._add_conv_attribute_to_method()
-                if protocol in self.annotations:
-                    self.annotations[protocol] = interface
+                if to_camelcase(protocol) in self.annotations:
+                    self.annotations[to_camelcase(protocol)] = interface
             if len(protocol_items) == len(tuple(self.protocols.items())):
                 break
         self.save_protocols()
@@ -134,12 +133,15 @@ class TypeAddTransformer(ImportVisitingTransformer):
         search = re.compile(callable_pattern).search
         call_exceptions = list(map(search, filter(search, exceptions)))
         for exception in call_exceptions:
-            field_name = exception.group(1)
-            self.updated_code = self.updated_code.replace(
-                f"{field_name.rstrip(string.digits)}: "
-                f"Literal['{field_name}']",
-                f"def {field_name.rstrip(string.digits)}" "(self):\n\t\t...",
+            literal_name = exception.group(1)
+            field_name = re.findall(
+                rf"(\S+): Literal\[\'{literal_name}\'\]", self.updated_code
             )
+            if field_name:
+                self.updated_code = self.updated_code.replace(
+                    f"{field_name[0]}: " f"Literal['{literal_name}']",
+                    f"def {field_name[0]}" "(self):\n\t\t...",
+                )
         exceptions = get_mypy_exceptions(
             self.temp_python_file, self.updated_code
         )
@@ -372,13 +374,15 @@ class TypeAddTransformer(ImportVisitingTransformer):
     def _create_protocol(self, class_name: str, attr_fields: Iterable[str]):
         attr_fields = set(attr_fields)
         for attr_field in attr_fields:
-            self.protocols[attr_field] += 1
+            self.protocols[to_camelcase(attr_field)] += 1
 
         def create_field(attr_field: str) -> str:
             if attr_field in dunder_methods:
                 parameters = ", ".join(dunder_method_params[attr_field])
                 return f"def {attr_field}({parameters}):\n\t\t..."
-            literal_name = attr_field + str(self.protocols[attr_field])
+            literal_name = to_camelcase(attr_field) + str(
+                self.protocols[to_camelcase(attr_field)]
+            )
             return f"{attr_field}: Literal['{literal_name}']"
 
         return (

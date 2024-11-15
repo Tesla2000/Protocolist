@@ -10,6 +10,7 @@ from libcst import RemovalSentinel
 
 from ..config import Config
 from ..consts import ANY
+from ..to_camelcase import to_camelcase
 from .transformer import Transformer
 
 
@@ -30,12 +31,16 @@ class PrototypeApplier(Transformer):
             ].slice.value.evaluated_value
         except AttributeError:
             return updated_node
-        if annotation not in self.annotations:
+        if to_camelcase(annotation) not in self.annotations:
             return updated_node
-        if self.annotations[annotation] != ANY or self.config.allow_any:
+        if (
+            self.annotations[to_camelcase(annotation)] != ANY
+            or self.config.allow_any
+        ):
             return updated_node.with_changes(
                 annotation=libcst.parse_module(
-                    f"def foo(bar: {self.annotations[annotation].replace(
+                    f"def foo(bar: {self.annotations[
+                        to_camelcase(annotation)].replace(
                         'collections.abc.', '')}):\n\tpass"
                 )
                 .body[0]

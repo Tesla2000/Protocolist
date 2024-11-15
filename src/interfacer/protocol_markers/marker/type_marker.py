@@ -22,6 +22,7 @@ from libcst import SubscriptElement
 from src.interfacer.config import Config
 from src.interfacer.protocol_markers.mark_options import MarkOption
 from src.interfacer.ProtocolDict import ProtocolDict
+from src.interfacer.to_camelcase import to_camelcase
 
 
 class TypeMarker(ABC):
@@ -41,7 +42,7 @@ class TypeMarker(ABC):
     def _create_literal_annotation(
         cls, updated_node: "Param", protocols: ProtocolDict, annotations: dict
     ) -> Optional[Annotation]:
-        param_name = updated_node.name.value
+        param_name = to_camelcase(updated_node.name.value)
         if param_name == "self":
             return
         protocols[param_name] += 1
@@ -57,7 +58,7 @@ class TypeMarker(ABC):
                     SubscriptElement(
                         slice=Index(
                             value=SimpleString(
-                                value=f"'{updated_node.name.value}"
+                                value=f"'{param_name}"
                                 f"{protocols[param_name]}'",
                                 lpar=[],
                                 rpar=[],
