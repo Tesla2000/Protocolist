@@ -30,7 +30,7 @@ class Config(BaseModel):
     allow_any: bool = False
     mark_option: MarkOption = MarkOption.ALL
     protocol_presentation: PresentationOption = (
-        PresentationOption.PARTIAL_PROTOCOLS
+        PresentationOption.COMBINED_PROTOCOLS
     )
     external_libraries: Optional[Iterable[str]] = tuple()
     excluded_libraries: Iterable[str] = tuple()

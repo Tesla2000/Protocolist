@@ -19,7 +19,7 @@ from .transform.create_protocols import create_protocols
 def main() -> int:
     args = parse_arguments(Config)
     config = create_config_with_args(Config, args)
-    with transation(config.pos_args):
+    with transation(config.pos_args, config.interfaces_path):
         return _main(config)
 
 

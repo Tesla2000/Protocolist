@@ -8,11 +8,11 @@ from ...interfacer.transform.transformer import Transformer
 from ..config import Config
 
 
-class ReplacePartialWithCombined(Transformer):
-    def __init__(self, config: Config, partial2composite: dict[str, str]):
+class ReplaceImportsAndNames(Transformer):
+    def __init__(self, config: Config, replace_dictionary: dict[str, str]):
         super().__init__()
         self.config = config
-        self.partial2composite = partial2composite
+        self.replace_dictionary = replace_dictionary
 
     def leave_ImportFrom(
         self, original_node: "ImportFrom", updated_node: "ImportFrom"
@@ -25,7 +25,7 @@ class ReplacePartialWithCombined(Transformer):
                 names=tuple(
                     import_alias.with_changes(
                         name=import_alias.name.with_changes(
-                            value=self.partial2composite.get(
+                            value=self.replace_dictionary.get(
                                 import_alias.name.value,
                                 import_alias.name.value,
                             )
@@ -40,7 +40,7 @@ class ReplacePartialWithCombined(Transformer):
         self, original_node: "Name", updated_node: "Name"
     ) -> "Name":
         return updated_node.with_changes(
-            value=self.partial2composite.get(
+            value=self.replace_dictionary.get(
                 updated_node.value, updated_node.value
             )
         )
