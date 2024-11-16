@@ -7,5 +7,5 @@ from .protocol_saver import ProtocolSaver
 class PartialProtocolSaver(ProtocolSaver):
     type = PresentationOption.PARTIAL_PROTOCOLS
 
-    def modify_protocols(self) -> None:
+    def _modify_protocols(self) -> None:
         pass
