@@ -4,7 +4,9 @@ import re
 from functools import reduce
 
 from more_itertools.more import map_reduce
+from more_itertools.more import unzip
 
+from ...extract_methods_and_fields import extract_methods_and_fields
 from ...protocol_markers.types_marker_factory import create_type_marker
 from ...transform.class_extractor import ClassExtractor
 from ..presentation_option import PresentationOption
@@ -25,31 +27,14 @@ class CombinedProtocolSaver(ProtocolSaver):
             lambda item: item[1],
         )
         for class_name, instances in grouped_classes.items():
-            methods = reduce(
-                set.union,
-                map(
-                    lambda instance: set(
-                        re.findall(r"    def [^\(]+\([^\)]+\):", instance)
-                    ),
-                    instances,
-                ),
-            )
-            fields = reduce(
-                set.union,
-                map(
-                    lambda instance: set(
-                        filter(
-                            lambda line: re.findall(r"^    \w+\:", line),
-                            instance.splitlines(),
-                        )
-                    ),
-                    instances,
-                ),
+            methods, fields = tuple(
+                reduce(set.union, stream)
+                for stream in unzip(map(extract_methods_and_fields, instances))
             )
             indent = 2 * self.config.tab_length * " "
             new_code += (
                 f"\n@runtime_checkable\nclass {class_name}(Protocol):"
-                f"\n{'\n'.join(fields)}"
+                f"\n{'\n'.join(fields)}\n"
                 f"{'\n'.join(f"{method.rstrip('.')}"
                              f"\n{indent}..." for method in methods)}"
             )

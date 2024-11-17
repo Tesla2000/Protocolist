@@ -2,9 +2,11 @@ from __future__ import annotations
 
 import re
 from itertools import product
+from operator import itemgetter
 from pathlib import Path
 
 from .config import Config
+from .extract_methods_and_fields import extract_method_names_and_field_names
 from .get_mypy_exceptions import get_mypy_exceptions
 from .protocol_markers.types_marker_factory import create_type_marker
 from .transform.class_extractor import ClassExtractor
@@ -26,8 +28,40 @@ def add_inheritance(file_path: Path, config: Config):
     )
     inheritances = []
     file_content = file_class_extractor.updated_module.code
-    for class_name, interface_name in product(
-        file_classes.keys(), interface_classes.keys()
+    class_attributes = {
+        key: extract_method_names_and_field_names(value)
+        for key, value in file_classes.items()
+    }
+    interface_attributes = {
+        key: extract_method_names_and_field_names(value)
+        for key, value in interface_classes.items()
+    }
+
+    def _check_fields_and_methods(item: tuple[str, str]) -> bool:
+        class_name, interface_name = item
+        interface_methods, interface_fields = interface_attributes[
+            interface_name
+        ]
+        class_methods, class_fields = class_attributes[class_name]
+        interface_method_names = set(
+            map(itemgetter(1), map(str.split, interface_methods))
+        )
+        class_method_names = set(
+            map(itemgetter(1), map(str.split, class_methods))
+        )
+        if interface_method_names.difference(class_method_names):
+            return False
+        interface_field_names = set(
+            map(itemgetter(0), map(str.split, interface_fields))
+        )
+        class_field_names = set(
+            map(itemgetter(0), map(str.split, class_fields))
+        )
+        return not interface_field_names.difference(class_field_names)
+
+    for class_name, interface_name in filter(
+        _check_fields_and_methods,
+        product(file_classes.keys(), interface_classes.keys()),
     ):
         class_inheritances = re.findall(
             rf"class {class_name}([^\)^:]*)", file_content
