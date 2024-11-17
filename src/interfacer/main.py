@@ -13,6 +13,7 @@ from .protocol_markers.types_marker_factory import create_type_marker
 from .ProtocolDict import ProtocolDict
 from .transaction import transation
 from .transform.class_extractor import ClassExtractor
+from .transform.class_extractor import GlobalClassExtractor
 from .transform.create_protocols import create_protocols
 
 
@@ -47,10 +48,10 @@ def _main(config: Config) -> int:
             protocols=protocols,
         )
     create_protocol_saver(config).modify_protocols()
+    global_class_extractor = GlobalClassExtractor(create_type_marker(config))
     for filepath in paths:
         fail |= add_inheritance(
-            filepath,
-            config=config,
+            filepath, config=config, class_extractor=global_class_extractor
         )
     fail |= os.system(
         f"reorder-python-imports {' '.join(config.pos_args)} "

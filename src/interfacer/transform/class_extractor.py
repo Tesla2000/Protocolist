@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Optional
 
 import libcst
@@ -30,3 +31,26 @@ class ClassExtractor(ImportVisitingTransformer):
         module = libcst.parse_module(code)
         module.visit(self)
         return self.classes
+
+    @property
+    def imports(self):
+        return self.type_marker.imports
+
+    @property
+    def imported_interfaces(self):
+        return self.type_marker.imported_interfaces
+
+
+class GlobalClassExtractor:
+    extractors: dict[Path, ClassExtractor]
+
+    def __init__(self, type_marker: TypeMarker):
+        self.type_marker = type_marker
+        self.extractors = {}
+
+    def get(self, path: Path) -> ClassExtractor:
+        if path in self.extractors:
+            return self.extractors[path]
+        self.extractors[path] = ClassExtractor(self.type_marker)
+        self.extractors[path].extract_classes(path.read_text())
+        return self.extractors[path]

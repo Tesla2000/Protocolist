@@ -18,6 +18,7 @@ from libcst import SimpleString
 from libcst import SimpleWhitespace
 from libcst import Subscript
 from libcst import SubscriptElement
+from mypy.memprofile import defaultdict
 
 from src.interfacer.config import Config
 from src.interfacer.protocol_markers.mark_options import MarkOption
@@ -31,6 +32,7 @@ class TypeMarker(ABC):
     def __init__(self, config: Config):
         self.config = config
         self.imported_interfaces = set()
+        self.imports = defaultdict(set)
 
     @abstractmethod
     def conv_parameter(
@@ -100,7 +102,10 @@ class TypeMarker(ABC):
                 .code.replace("from ", "", 1)
                 .partition(" import ")
             )
+            self.imports[import_path].update(
+                set(imported_elements.split(", "))
+            )
             if import_path == self.config.interface_import_path:
                 self.imported_interfaces.update(
-                    set(imported_elements.split(", ")).difference({"Any"})
+                    self.imports[import_path].difference({"Any"})
                 )
