@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterable
+from itertools import chain
 from typing import Optional
 from typing import Union
 
@@ -27,8 +28,8 @@ from src.interfacer.get_external_library_classes import (
     get_external_library_classes,
 )  # noqa: E501
 from src.interfacer.get_mypy_exceptions import get_mypy_exceptions
+from src.interfacer.protocol_dict import ProtocolDict
 from src.interfacer.protocol_markers.marker.type_marker import TypeMarker
-from src.interfacer.ProtocolDict import ProtocolDict
 from src.interfacer.to_camelcase import to_camelcase
 from src.interfacer.transform.class_extractor import ClassExtractor
 from src.interfacer.transform.import_visiting_transformer import (
@@ -68,8 +69,9 @@ class TypeAddTransformer(ImportVisitingTransformer):
                         f"Literal['{protocol}']", "None"
                     ),
                 )
-                interface = self._get_missing_interface(
-                    protocol, exceptions, self.updated_code
+                interface = self._get_missing_interface(protocol, exceptions)
+                interface = self._combine_saved_and_new_interface(
+                    interface, protocol
                 )
                 self.updated_code = self.updated_code.replace(
                     f"Literal['{protocol}']", interface
@@ -77,7 +79,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 self._add_conv_attribute_to_method()
                 if to_camelcase(protocol) in self.annotations:
                     self.annotations[to_camelcase(protocol)] = interface
-            if len(protocol_items) == len(tuple(self.protocols.items())):
+            if protocol_items == tuple(self.protocols.items()):
                 break
         self.save_protocols()
         return self._update_parameters(updated_node)
@@ -243,7 +245,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         return f"Union[{', '.join(types)}]"
 
     def _get_missing_interface(
-        self, class_name: str, exceptions: Iterable[str], code: str
+        self, class_name: str, exceptions: Iterable[str]
     ) -> str:
         exceptions = frozenset(exceptions)
         if not exceptions:
@@ -404,3 +406,30 @@ class TypeAddTransformer(ImportVisitingTransformer):
     def visit_Lambda_params(self, node: "Lambda") -> None:
         self._lambda_params.update(set(node.params.params))
         return super().visit_Lambda_params(node)
+
+    def _combine_saved_and_new_interface(
+        self, new_interface: str, protocol: str
+    ) -> str:
+        old_interface = self.type_marker.saved_annotations.get(protocol)
+        if old_interface is None:
+            return new_interface
+        old_elements = tuple(
+            map(
+                str.strip,
+                old_interface.replace("Union[", "", 1).strip("]").split(","),
+            )
+        )
+        new_elements = tuple(
+            map(
+                str.strip,
+                new_interface.replace("Union[", "", 1).strip("]").split(","),
+            )
+        )
+        combined_elements = tuple(
+            chain.from_iterable(
+                (old_elements, set(new_elements).difference(old_elements))
+            )
+        )
+        if len(combined_elements) == 1:
+            return tuple(combined_elements)[0]
+        return f"Union[{', '.join(combined_elements)}]"

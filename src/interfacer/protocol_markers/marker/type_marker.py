@@ -20,14 +20,16 @@ from libcst import Subscript
 from libcst import SubscriptElement
 from mypy.memprofile import defaultdict
 
+from src.interfacer.annotation2string import annotation2string
 from src.interfacer.config import Config
+from src.interfacer.protocol_dict import ProtocolDict
 from src.interfacer.protocol_markers.mark_options import MarkOption
-from src.interfacer.ProtocolDict import ProtocolDict
 from src.interfacer.to_camelcase import to_camelcase
 
 
 class TypeMarker(ABC):
     type: MarkOption
+    saved_annotations: dict[str, Optional[str]] = {}
 
     def __init__(self, config: Config):
         self.config = config
@@ -40,15 +42,19 @@ class TypeMarker(ABC):
     ) -> "Param":
         pass
 
-    @classmethod
     def _create_literal_annotation(
-        cls, updated_node: "Param", protocols: ProtocolDict, annotations: dict
+        self, updated_node: "Param", protocols: ProtocolDict, annotations: dict
     ) -> Optional[Annotation]:
         param_name = to_camelcase(updated_node.name.value)
         if param_name == "self":
             return
         protocols[param_name] += 1
-        annotations[param_name + str(protocols[param_name])] = None
+        numeric_param_name = param_name + str(protocols[param_name])
+        annotations[numeric_param_name] = None
+        if self.config.keep_hints:
+            self.saved_annotations[numeric_param_name] = annotation2string(
+                updated_node.annotation
+            )
         return Annotation(
             annotation=Subscript(
                 value=Name(
@@ -60,8 +66,7 @@ class TypeMarker(ABC):
                     SubscriptElement(
                         slice=Index(
                             value=SimpleString(
-                                value=f"'{param_name}"
-                                f"{protocols[param_name]}'",
+                                value=f"'{numeric_param_name}'",
                                 lpar=[],
                                 rpar=[],
                             ),

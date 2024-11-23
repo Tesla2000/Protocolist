@@ -35,6 +35,7 @@ class Config(BaseModel):
     external_libraries: Optional[Iterable[str]] = tuple()
     excluded_libraries: Iterable[str] = tuple()
     tab_length: int = 4
+    keep_hints: bool = True
 
     def __init__(self, /, **data: Any):
         data["interfaces_path"] = Path(
