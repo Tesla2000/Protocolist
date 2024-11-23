@@ -63,5 +63,7 @@ class ReplaceImportsAndNames(Transformer):
                 )
             )
         return updated_node.with_changes(
-            annotation=Name(value=subscript_element2string(unique_slices[0]))
+            annotation=Name(
+                value=subscript_element2string(unique_slices[0]).strip('"')
+            )
         )

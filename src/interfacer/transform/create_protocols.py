@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import traceback
 from itertools import chain
+from itertools import filterfalse
+from operator import itemgetter
 from pathlib import Path
 
 import libcst as cst
@@ -9,6 +11,7 @@ from mypy.memprofile import defaultdict
 
 from ..config import Config
 from ..consts import ANY
+from ..consts import builtin_types
 from ..protocol_markers.types_marker_factory import create_type_marker
 from .type_add_transformer import TypeAddTransformer
 
@@ -34,8 +37,14 @@ def create_protocols(
         "".join(
             set(
                 f"from {config.interface_import_path} import {annotation}\n"
-                for annotation in chain.from_iterable(
-                    map(_split_annotations, transformer.annotations.values())
+                for annotation in filterfalse(
+                    tuple(map(itemgetter(0), builtin_types)).__contains__,
+                    chain.from_iterable(
+                        map(
+                            _split_annotations,
+                            transformer.annotations.values(),
+                        )
+                    ),
                 )
                 if (annotation != ANY or config.allow_any)
                 and annotation not in external_imports

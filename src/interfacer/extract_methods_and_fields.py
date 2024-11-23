@@ -103,11 +103,14 @@ def _extract_from_import(
         )
     method_names, field_names = set(), set()
     tuple(
-        tuple(
-            (method_names.update(methods), field_names.update(fields))
-            for methods, fields in _extract_from_import(
-                import_path, imported_name, class_extractor
-            )
+        (
+            (
+                methods_and_fields := _extract_from_import(
+                    import_path, imported_name, class_extractor
+                )
+            ),
+            method_names.update(methods_and_fields[0]),
+            field_names.update(methods_and_fields[1]),
         )
         for import_path, imported_names in imports.items()
         if imported_name in imported_names or "*" in imported_names
