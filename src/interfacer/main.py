@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from operator import itemgetter
 from pathlib import Path
 
 from .add_inheritance import add_inheritance
@@ -9,8 +10,8 @@ from .config import Config
 from .config import create_config_with_args
 from .config import parse_arguments
 from .presentation_option.protocol_saver_factory import create_protocol_saver
+from .protocol_dict import ProtocolDict
 from .protocol_markers.types_marker_factory import create_type_marker
-from .ProtocolDict import ProtocolDict
 from .transaction import transation
 from .transform.class_extractor import ClassExtractor
 from .transform.class_extractor import GlobalClassExtractor
@@ -34,11 +35,17 @@ def _main(config: Config) -> int:
         config.interfaces_path.read_text()
     )
     interfaces = dict(
-        (item[0][0], int(item[0][1]))
-        for item in map(
-            lambda name: re.findall(r"(\D+)(\d+)", name), classes.keys()
+        sorted(
+            (
+                (item[0][0], int(item[0][1]))
+                for item in map(
+                    lambda name: re.findall(r"(\D+)(\d+)", name),
+                    classes.keys(),
+                )
+                if item
+            ),
+            key=itemgetter(1),
         )
-        if item
     )
     protocols = ProtocolDict(int, **interfaces)
     for filepath in paths:

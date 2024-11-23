@@ -39,7 +39,9 @@ class ProtocolSaver(ABC):
         extracted_classes = extractor.extract_classes(code)
         grouped_classes = map_reduce(
             extracted_classes.items(),
-            lambda item: item[1].partition("(Protocol):\n")[-1],
+            lambda item: item[1]
+            .partition("(Protocol):\n")[-1]
+            .replace(": ...\n", ":\n        ...\n"),
         )
         unique_classes = dict(
             sorted(
