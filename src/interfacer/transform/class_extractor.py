@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import OrderedDict
 from pathlib import Path
 from typing import Optional
 
@@ -15,13 +16,16 @@ from src.interfacer.transform.import_visiting_transformer import (
 
 class ClassExtractor(ImportVisitingTransformer):
     classes: dict[str, str]
+    class_nodes: OrderedDict[str, ClassDef]
 
     def __init__(self, type_marker: TypeMarker):
         super().__init__(type_marker)
         self.classes = {}
+        self.class_nodes = OrderedDict()
 
     def visit_ClassDef(self, node: "ClassDef") -> Optional[bool]:
         class_name = node.name.value
+        self.class_nodes[class_name] = node
         self.classes[class_name] = self.classes.get(
             class_name, Module([node]).code
         ).lstrip()

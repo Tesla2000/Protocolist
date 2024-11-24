@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import re
+from collections import OrderedDict
 from collections.abc import Iterable
 from itertools import chain
 from typing import Optional
 from typing import Union
 
+from libcst import ClassDef
 from libcst import FlattenSentinel
 from libcst import FunctionDef
 from libcst import Lambda
@@ -16,6 +18,7 @@ from libcst import RemovalSentinel
 from more_itertools import map_reduce
 
 from src.interfacer.config import Config
+from src.interfacer.construct_full_class import construct_full_class
 from src.interfacer.consts import abc_classes
 from src.interfacer.consts import ANY
 from src.interfacer.consts import builtin_types
@@ -32,6 +35,7 @@ from src.interfacer.protocol_dict import ProtocolDict
 from src.interfacer.protocol_markers.marker.type_marker import TypeMarker
 from src.interfacer.to_camelcase import to_camelcase
 from src.interfacer.transform.class_extractor import ClassExtractor
+from src.interfacer.transform.class_extractor import GlobalClassExtractor
 from src.interfacer.transform.import_visiting_transformer import (
     ImportVisitingTransformer,
 )
@@ -43,20 +47,43 @@ class TypeAddTransformer(ImportVisitingTransformer):
     annotations: dict[str, Optional[str]]
 
     def __init__(
-        self, config: Config, protocol: ProtocolDict, types_marker: TypeMarker
+        self,
+        config: Config,
+        protocol: ProtocolDict,
+        types_marker: TypeMarker,
+        class_extractor: GlobalClassExtractor,
     ):
         super().__init__(types_marker)
+        self._previous_classes = OrderedDict()
+        self.class_extractor = class_extractor
         self.config = config
         self.protocols = protocol
         self.temp_python_file = self.config.mypy_folder / "_temp.py"
         self.annotations = {}
         self.imports = set()
         self._lambda_params = set()
+        self._classes_of_methods: dict[FunctionDef, ClassDef] = {}
 
     def leave_FunctionDef(
         self, original_node: "FunctionDef", updated_node: "FunctionDef"
     ) -> "FunctionDef":
-        self.updated_code = import_statement + Module([updated_node]).code
+        if original_node in self._classes_of_methods:
+            class_ = self._classes_of_methods[original_node]
+            updated_function_code = Module(
+                [
+                    class_.with_changes(
+                        body=class_.body.with_changes(
+                            body=tuple(
+                                updated_node if elem == original_node else elem
+                                for elem in class_.body.body
+                            )
+                        )
+                    )
+                ]
+            ).code
+        else:
+            updated_function_code = Module([updated_node]).code
+        self.updated_code = import_statement + updated_function_code
         while True:
             protocol_items = tuple(self.protocols.items())
             for protocol in self.protocols.get_protocols():
@@ -83,6 +110,20 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 break
         self.save_protocols()
         return self._update_parameters(updated_node)
+
+    def visit_ClassDef(self, node: "ClassDef") -> Optional[bool]:
+        full_class_node = construct_full_class(
+            node,
+            self.class_extractor,
+            self._previous_classes,
+            self.type_marker.imports,
+        )
+        self._previous_classes[node.name.value] = node
+        for method in filter(
+            FunctionDef.__instancecheck__, full_class_node.body.body
+        ):
+            self._classes_of_methods[method] = full_class_node
+        return super().visit_ClassDef(full_class_node)
 
     def _update_parameters(self, updated_node: FunctionDef) -> FunctionDef:
         module = Module([updated_node])

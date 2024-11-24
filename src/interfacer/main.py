@@ -48,14 +48,15 @@ def _main(config: Config) -> int:
         )
     )
     protocols = ProtocolDict(int, **interfaces)
+    global_class_extractor = GlobalClassExtractor(create_type_marker(config))
     for filepath in paths:
         fail |= create_protocols(
             filepath,
             config=config,
             protocols=protocols,
+            class_extractor=global_class_extractor,
         )
     create_protocol_saver(config).modify_protocols()
-    global_class_extractor = GlobalClassExtractor(create_type_marker(config))
     for filepath in paths:
         fail |= add_inheritance(
             filepath, config=config, class_extractor=global_class_extractor

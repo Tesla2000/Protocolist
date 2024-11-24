@@ -1,11 +1,11 @@
 from __future__ import annotations
 
-import os
 import re
 from pathlib import Path
 
 from .consts import abc_classes
 from .consts import builtin_types
+from .import2path import import2path
 from .transform.class_extractor import GlobalClassExtractor
 
 
@@ -90,9 +90,7 @@ def extract_method_names_and_field_names(
 def _extract_from_import(
     import_path: str, imported_name: str, class_extractor: GlobalClassExtractor
 ) -> tuple[set, set]:
-    import_file_path = (
-        Path(os.getcwd()).joinpath(*import_path.split(".")).with_suffix(".py")
-    )
+    import_file_path = import2path(import_path)
     if not import_file_path.exists():
         return set(), set()
     classes = class_extractor.get(import_file_path).classes

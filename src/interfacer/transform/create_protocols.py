@@ -13,16 +13,20 @@ from ..config import Config
 from ..consts import ANY
 from ..consts import builtin_types
 from ..protocol_markers.types_marker_factory import create_type_marker
+from .class_extractor import GlobalClassExtractor
 from .type_add_transformer import TypeAddTransformer
 
 
 def create_protocols(
-    filepath: Path, config: Config, protocols: defaultdict[int]
+    filepath: Path,
+    config: Config,
+    protocols: defaultdict[int],
+    class_extractor: GlobalClassExtractor,
 ) -> int:
     code = filepath.read_text()
     module = cst.parse_module(code)
     transformer = TypeAddTransformer(
-        config, protocols, create_type_marker(config)
+        config, protocols, create_type_marker(config), class_extractor
     )
     try:
         new_code = module.visit(transformer).code
