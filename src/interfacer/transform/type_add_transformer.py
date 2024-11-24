@@ -135,7 +135,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         return function_def
 
     def save_protocols(self):
-        protocols = self._get_created_protocals()
+        protocols = self._get_created_protocols()
         for prototype_code in protocols.values():
             self.updated_code = self.updated_code.replace(
                 prototype_code.replace(4 * " ", "\t"), "", 1
@@ -163,8 +163,8 @@ class TypeAddTransformer(ImportVisitingTransformer):
         )
         self.config.interfaces_path.write_text(interface_code)
 
-    def _get_created_protocals(self) -> dict[str, str]:
-        return ClassExtractor(self.type_marker).extract_classes(
+    def _get_created_protocols(self) -> dict[str, str]:
+        return ClassExtractor(self.type_marker).extract_protocols(
             self.updated_code
         )
 

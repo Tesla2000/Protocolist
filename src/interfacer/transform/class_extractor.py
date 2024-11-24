@@ -16,25 +16,33 @@ from src.interfacer.transform.import_visiting_transformer import (
 
 class ClassExtractor(ImportVisitingTransformer):
     classes: dict[str, str]
+    protocols: dict[str, str]
     class_nodes: OrderedDict[str, ClassDef]
 
     def __init__(self, type_marker: TypeMarker):
         super().__init__(type_marker)
         self.classes = {}
+        self.protocols = {}
         self.class_nodes = OrderedDict()
 
     def visit_ClassDef(self, node: "ClassDef") -> Optional[bool]:
         class_name = node.name.value
+        class_code = self.classes.get(class_name, Module([node]).code).lstrip()
+        if any(base.value.value == "Protocol" for base in node.bases):
+            self.protocols[class_name] = class_code
         self.class_nodes[class_name] = node
-        self.classes[class_name] = self.classes.get(
-            class_name, Module([node]).code
-        ).lstrip()
+        self.classes[class_name] = class_code
         return super().visit_ClassDef(node)
 
     def extract_classes(self, code) -> dict[str, str]:
         module = libcst.parse_module(code)
         module.visit(self)
         return self.classes
+
+    def extract_protocols(self, code) -> dict[str, str]:
+        module = libcst.parse_module(code)
+        module.visit(self)
+        return self.protocols
 
     @property
     def imports(self):
