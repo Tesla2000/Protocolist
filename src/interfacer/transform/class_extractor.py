@@ -8,7 +8,11 @@ import libcst
 from libcst import ClassDef
 from libcst import Module
 
+from src.interfacer.config import Config
 from src.interfacer.protocol_markers.marker import TypeMarker
+from src.interfacer.protocol_markers.types_marker_factory import (
+    create_type_marker,
+)
 from src.interfacer.transform.import_visiting_transformer import (
     ImportVisitingTransformer,
 )
@@ -56,13 +60,13 @@ class ClassExtractor(ImportVisitingTransformer):
 class GlobalClassExtractor:
     extractors: dict[Path, ClassExtractor]
 
-    def __init__(self, type_marker: TypeMarker):
-        self.type_marker = type_marker
+    def __init__(self, config: Config):
+        self.config = config
         self.extractors = {}
 
     def get(self, path: Path) -> ClassExtractor:
         if path in self.extractors:
             return self.extractors[path]
-        self.extractors[path] = ClassExtractor(self.type_marker)
+        self.extractors[path] = ClassExtractor(create_type_marker(self.config))
         self.extractors[path].extract_classes(path.read_text())
         return self.extractors[path]

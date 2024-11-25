@@ -7,6 +7,7 @@ from typing import Optional
 from libcst import Annotation
 from libcst import Import
 from libcst import ImportFrom
+from libcst import ImportStar
 from libcst import Index
 from libcst import LeftSquareBracket
 from libcst import MaybeSentinel
@@ -102,13 +103,18 @@ class TypeMarker(ABC):
 
     def register_import(self, import_: Import | ImportFrom):
         if isinstance(import_, ImportFrom):
-            import_path, _, imported_elements = (
+            import_path, *_ = (
                 Module([import_])
                 .code.replace("from ", "", 1)
                 .partition(" import ")
             )
             self.imports[import_path].update(
-                set(imported_elements.split(", "))
+                {"*"}
+                if isinstance(import_.names, ImportStar)
+                else set(
+                    import_alias.evaluated_name
+                    for import_alias in import_.names
+                )
             )
             if import_path == self.config.interface_import_path:
                 self.imported_interfaces.update(

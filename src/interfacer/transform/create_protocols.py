@@ -5,8 +5,11 @@ from itertools import chain
 from itertools import filterfalse
 from operator import itemgetter
 from pathlib import Path
+from typing import Optional
 
+import libcst
 import libcst as cst
+from libcst import Name
 from mypy.memprofile import defaultdict
 
 from ..config import Config
@@ -69,11 +72,24 @@ def create_protocols(
 
 
 def _split_annotations(annotation: str) -> list[str]:
-    if not annotation.startswith("Union["):
-        return [annotation]
-    return list(
-        annotation.strip().replace("collections.abc.", "")
-        for annotation in annotation.replace("Union[", "")
-        .strip("]")
-        .split(",")
-    ) + ["Union"]
+    # if not annotation.startswith("Union["):
+    #     return [annotation]
+    names_getter = _NamesGetter()
+    libcst.parse_expression(annotation).visit(names_getter)
+    return names_getter.names
+    # return list(
+    #     annotation.strip().replace("collections.abc.", "")
+    #     for annotation in annotation.replace("Union[", "")
+    #     .removesuffix("]")
+    #     .split(",")
+    # ) + ["Union"]
+
+
+class _NamesGetter(libcst.CSTTransformer):
+    def __init__(self):
+        super().__init__()
+        self.names = []
+
+    def visit_Name(self, node: "Name") -> Optional[bool]:
+        self.names.append(node.value)
+        return super().visit_Name(node)

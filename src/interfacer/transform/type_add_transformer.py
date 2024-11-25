@@ -203,6 +203,8 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 function_signature = self._get_function_signature(
                     function_name, self.updated_code
                 )
+                if function_signature is None:
+                    continue
                 n_args = len(
                     re.findall(
                         r"\d+",
@@ -249,6 +251,8 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 function_signature = self._get_function_signature(
                     function_name, self.updated_code
                 )
+                if function_signature is None:
+                    continue
                 exceptions = get_mypy_exceptions(
                     self.temp_python_file,
                     self.updated_code.replace(
@@ -408,10 +412,13 @@ class TypeAddTransformer(ImportVisitingTransformer):
 
     def _get_function_signature(
         self, function_name: str, updated_code: str
-    ) -> str:
-        return re.findall(
-            rf"def {function_name}\(self[^)]*",
-            updated_code,
+    ) -> Optional[str]:
+        return (
+            re.findall(
+                rf"def {function_name}\(self[^)]*",
+                updated_code,
+            )
+            or [None]
         )[0]
 
     def _create_protocol(self, class_name: str, attr_fields: Iterable[str]):
@@ -454,18 +461,31 @@ class TypeAddTransformer(ImportVisitingTransformer):
         old_interface = self.type_marker.saved_annotations.get(protocol)
         if old_interface is None:
             return new_interface
-        old_elements = tuple(
-            map(
-                str.strip,
-                old_interface.replace("Union[", "", 1).strip("]").split(","),
+        if new_interface == ANY and not self.config.allow_any:
+            return old_interface
+        if old_interface.startswith("Union["):
+            old_elements = tuple(
+                map(
+                    str.strip,
+                    old_interface.removeprefix("Union[")
+                    .removesuffix("]")
+                    .split(","),
+                )
             )
-        )
-        new_elements = tuple(
-            map(
-                str.strip,
-                new_interface.replace("Union[", "", 1).strip("]").split(","),
+        else:
+            old_elements = [old_interface]
+        if new_interface.startswith("Union["):
+            new_elements = tuple(
+                map(
+                    str.strip,
+                    new_interface.replace("Union[", "", 1)
+                    .removesuffix("]")
+                    .split(","),
+                )
             )
-        )
+        else:
+            new_elements = [new_interface]
+
         combined_elements = tuple(
             chain.from_iterable(
                 (old_elements, set(new_elements).difference(old_elements))
