@@ -48,7 +48,7 @@ def _main(config: Config) -> int:
         )
     )
     protocols = ProtocolDict(int, **interfaces)
-    global_class_extractor = GlobalClassExtractor(create_type_marker(config))
+    global_class_extractor = GlobalClassExtractor(config)
     for filepath in paths:
         fail |= create_protocols(
             filepath,

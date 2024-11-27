@@ -5,6 +5,7 @@ from pathlib import Path
 
 from .consts import abc_classes
 from .consts import builtin_types
+from .fields_methods_extractor import FieldsAndMethodsExtractor
 from .import2path import import2path
 from .transform.class_extractor import GlobalClassExtractor
 
@@ -23,20 +24,15 @@ def extract_methods_and_fields(code: str) -> tuple[set[str], set[str]]:
 def extract_method_names_and_field_names(
     code: str, file_path: Path, class_extractor: GlobalClassExtractor
 ) -> tuple[set[str], set[str]]:
-    method_names, field_names = set(
-        re.findall(r"    def ([^\(]+)\([^\)]+\)[^:]*:", code)
-    ).difference(["__init__"]), set(
-        filter(
-            lambda line: re.findall(r"^    (\w+)\:", line),
-            code.splitlines(),
-        )
+    methods, fields, bases = (
+        FieldsAndMethodsExtractor.get_methods_fields_and_bases(code)
     )
-    bases = set(
-        map(
-            str.strip,
-            (re.findall(r"class \w+\(([^\)]+)\)", code) or [""])[0].split(","),
-        )
-    ).difference(["Protocol"])
+    method_names = set(
+        re.findall(r"def ([^\(]+)\([^\)]+\)[^:]*:", method)[0]
+        for method in methods
+    ).difference(["__init__"])
+    field_names = set(re.findall(r"(\w+)\:", field)[0] for field in fields)
+    bases = set(bases).difference(["Protocol"])
     classes = class_extractor.get(file_path).classes
     imports = class_extractor.get(file_path).imports
     _builtin_types = {item[0]: item for item in builtin_types}

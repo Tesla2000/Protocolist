@@ -7,4 +7,6 @@ import mypy.api
 
 def get_mypy_exceptions(temp_python_file: Path, updated_code: str):
     temp_python_file.write_text(updated_code)
-    return mypy.api.run([str(temp_python_file)])[0].splitlines()[:-1]
+    return mypy.api.run([str(temp_python_file), "--strict"])[0].splitlines()[
+        :-1
+    ]

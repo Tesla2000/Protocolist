@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import libcst
 from libcst import Annotation
 from libcst import ImportFrom
 from libcst import Module
@@ -41,9 +42,11 @@ class ReplaceNames(Transformer):
                 )
             )
         return updated_node.with_changes(
-            annotation=Name(
-                value=subscript_element2string(unique_slices[0]).strip('"')
+            annotation=libcst.parse_statement(
+                subscript_element2string(unique_slices[0]).strip('"')
             )
+            .body[0]
+            .value
         )
 
 

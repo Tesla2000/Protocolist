@@ -1,10 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Collection
 from collections.abc import Iterator
-from typing import Collection
+from typing import Any
 from typing import Union
-
-from interfaces.interfaces import Any
 
 
 class Content(str):
@@ -24,8 +23,19 @@ class Role(str):
     def __delitem__(self, key: Any) -> None:
         return
 
+    def __setitem__(self, key, value):
+        return
+
     def __iter__(self) -> Iterator["Role"]:
         return (Role() for _ in range(3))
+
+
+class MessageContent:
+    string: str
+    content: Content
+
+    def __setitem__(self, key, value):
+        return
 
 
 class Message:
@@ -35,4 +45,4 @@ class Message:
         return arg0 + str(arg1) + str(string)
 
     role: Role
-    content: Content
+    content: MessageContent
