@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Optional
-
 import libcst
 from libcst import ClassDef
 from libcst import MaybeSentinel
@@ -36,9 +34,6 @@ class InheritanceRemovingClassExtractor(ClassExtractor):
                 rpar=MaybeSentinel.DEFAULT, lpar=MaybeSentinel.DEFAULT
             )
         return updated_node
-
-    def visit_ClassDef(self, node: "ClassDef") -> Optional[bool]:
-        return super().visit_ClassDef(node)
 
     def extract_classes(self, code) -> dict[str, str]:
         module = libcst.parse_module(code)

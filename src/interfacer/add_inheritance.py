@@ -38,6 +38,7 @@ def add_inheritance(
         )
         for key, value in interface_classes.items()
     }
+    classes = class_extractor.get(file_path).classes
 
     def _check_fields_and_methods(item: tuple[str, str]) -> bool:
         class_name, interface_name = item
@@ -53,17 +54,26 @@ def add_inheritance(
         _check_fields_and_methods,
         product(file_classes.keys(), interface_classes.keys()),
     ):
+        class_code = classes[class_name]
         class_inheritances = re.findall(
-            rf"class {class_name}([^\)^:]*)", file_content
+            rf"class {class_name}([^\)^:]*)", class_code
         )[0]
         class_header = f"class {class_name}{class_inheritances}"
         if class_inheritances:
+            new_class_code = class_code.replace(
+                class_header,
+                class_header.rstrip(", ") + ", " + interface_name,
+                1,
+            )
             updated_file_content = file_content.replace(
-                class_header, class_header.rstrip(", ") + ", " + interface_name
+                class_code, new_class_code, 1
             )
         else:
+            new_class_code = class_code.replace(
+                class_header, class_header + f"({interface_name})", 1
+            )
             updated_file_content = file_content.replace(
-                class_header, class_header + f"({interface_name})"
+                class_code, new_class_code, 1
             )
         inheritance_code = re.sub(
             r"from interfaces\.interfaces import \S+",
@@ -91,6 +101,7 @@ def add_inheritance(
             )
         ):
             continue
+        classes[class_name] = new_class_code
         file_content = updated_file_content
         inheritances.append((class_name, interface_name))
     file_content = (

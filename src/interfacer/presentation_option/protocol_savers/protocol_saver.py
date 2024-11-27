@@ -11,6 +11,7 @@ import libcst
 from more_itertools.more import map_reduce
 
 from ...config import Config
+from ...fields_methods_extractor import FieldsAndMethodsExtractor
 from ...protocol_markers.types_marker_factory import create_type_marker
 from ...transform.class_extractor import ClassExtractor
 from ..presentation_option import PresentationOption
@@ -45,9 +46,9 @@ class ProtocolSaver(ABC):
             ).extract_classes(code)
             grouped_classes = map_reduce(
                 extracted_classes.items(),
-                lambda item: item[1]
-                .partition("(Protocol):\n")[-1]
-                .replace(": ...\n", ":\n        ...\n"),
+                lambda item: FieldsAndMethodsExtractor.get_methods_and_fields(
+                    item[-1]
+                ),
             )
             unique_classes = dict(
                 sorted(
