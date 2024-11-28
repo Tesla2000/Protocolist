@@ -26,10 +26,12 @@ from src.interfacer.consts import dunder_method_params
 from src.interfacer.consts import dunder_methods
 from src.interfacer.consts import exception2method
 from src.interfacer.consts import import_statement
+from src.interfacer.consts import types_parametrized_with_one_parameter
+from src.interfacer.consts import types_parametrized_with_two_parameters
 from src.interfacer.get_external_library_classes import ExternalLibElement
 from src.interfacer.get_external_library_classes import (
     get_external_library_classes,
-)  # noqa: E501
+)
 from src.interfacer.get_mypy_exceptions import get_mypy_exceptions
 from src.interfacer.protocol_dict import ProtocolDict
 from src.interfacer.protocol_markers.marker.type_marker import TypeMarker
@@ -216,6 +218,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     self.updated_code.replace(
                         function_signature,
                         function_signature + f", arg{n_args}: None",
+                        1,
                     ),
                 )
                 hint = self._handle_incompatible_type(
@@ -225,11 +228,13 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     self.updated_code = self.updated_code.replace(
                         function_signature,
                         function_signature + f", arg{n_args}: {hint}",
+                        1,
                     )
                 else:
                     self.updated_code = self.updated_code.replace(
                         function_signature,
                         function_signature + f", arg{n_args}",
+                        1,
                     )
                 exceptions = get_mypy_exceptions(
                     self.temp_python_file, self.updated_code
@@ -258,6 +263,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     self.updated_code.replace(
                         function_signature,
                         function_signature + f", {kwarg_name}: None",
+                        1,
                     ),
                 )
                 self.updated_code = self.updated_code.replace(
@@ -266,6 +272,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     + f", {kwarg_name}: {self._handle_incompatible_type(
                         function_name, exceptions
                     )}",
+                    1,
                 )
 
     def _handle_incompatible_type(
@@ -369,7 +376,42 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 ),
             )
 
+        def add_subtypes(interface: str) -> str:
+            if interface in types_parametrized_with_one_parameter:
+                exceptions = get_mypy_exceptions(
+                    self.temp_python_file,
+                    self.updated_code.replace(
+                        f"Literal['{class_name}']", interface + "[None]"
+                    ),
+                )
+                subscription = self._get_missing_interface(
+                    class_name + "Subscript", exceptions
+                )
+                return interface + f"[{subscription}]"
+            if interface in types_parametrized_with_two_parameters:
+                exceptions = get_mypy_exceptions(
+                    self.temp_python_file,
+                    self.updated_code.replace(
+                        f"Literal['{class_name}']", interface + "[None, Any]"
+                    ),
+                )
+                subscription1 = self._get_missing_interface(
+                    class_name + "FirstSubscript", exceptions
+                )
+                exceptions = get_mypy_exceptions(
+                    self.temp_python_file,
+                    self.updated_code.replace(
+                        f"Literal['{class_name}']", interface + "[Any, None]"
+                    ),
+                )
+                subscription2 = self._get_missing_interface(
+                    class_name + "SecondSubscript", exceptions
+                )
+                return interface + f"[{subscription1}, {subscription2}]"
+            return interface
+
         valid_iterfaces = tuple(filter(is_interface_valid, valid_iterfaces))
+        valid_iterfaces = tuple(map(add_subtypes, valid_iterfaces))
         valid_external_lib_entries = tuple(
             filter(is_external_lib_valid, external_lib_entries)
         )
