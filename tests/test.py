@@ -12,8 +12,8 @@ def foo(message) -> None:
     }
     message.role[1] = "foo"
     assert message.content.string.startswith("a")
-    for _ in message.content.content:
-        pass
+    for string in message.content.content:
+        string.startswith("foo")
     print(len(message.content.content))
     del message.role[0]
     next(message.role)

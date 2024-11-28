@@ -7,7 +7,7 @@ from typing import Union
 
 
 class Content(str):
-    content: Collection
+    content: Collection[str]
 
 
 class Role(str):
