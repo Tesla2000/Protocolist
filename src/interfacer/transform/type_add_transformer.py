@@ -4,6 +4,7 @@ import re
 from collections import OrderedDict
 from collections.abc import Iterable
 from itertools import chain
+from itertools import filterfalse
 from typing import Optional
 from typing import Union
 
@@ -26,13 +27,18 @@ from src.interfacer.consts import dunder_method_params
 from src.interfacer.consts import dunder_methods
 from src.interfacer.consts import exception2method
 from src.interfacer.consts import import_statement
+from src.interfacer.consts import types_parametrized_with_one_parameter
+from src.interfacer.consts import types_parametrized_with_two_parameters
 from src.interfacer.get_external_library_classes import ExternalLibElement
 from src.interfacer.get_external_library_classes import (
     get_external_library_classes,
-)  # noqa: E501
+)
 from src.interfacer.get_mypy_exceptions import get_mypy_exceptions
 from src.interfacer.protocol_dict import ProtocolDict
 from src.interfacer.protocol_markers.marker.type_marker import TypeMarker
+from src.interfacer.protocol_markers.types_marker_factory import (
+    create_type_marker,
+)
 from src.interfacer.to_camelcase import to_camelcase
 from src.interfacer.transform.class_extractor import ClassExtractor
 from src.interfacer.transform.class_extractor import GlobalClassExtractor
@@ -63,6 +69,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         self.imports = set()
         self._lambda_params = set()
         self._classes_of_methods: dict[FunctionDef, ClassDef] = {}
+        self._protocols_with_methods = set()
 
     def leave_FunctionDef(
         self, original_node: "FunctionDef", updated_node: "FunctionDef"
@@ -103,7 +110,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 self.updated_code = self.updated_code.replace(
                     f"Literal['{protocol}']", interface
                 )
-                self._add_conv_attribute_to_method()
+                self._conv_attribute_to_method()
                 if to_camelcase(protocol) in self.annotations:
                     self.annotations[to_camelcase(protocol)] = interface
             if protocol_items == tuple(self.protocols.items()):
@@ -168,7 +175,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
             self.updated_code
         )
 
-    def _add_conv_attribute_to_method(self):
+    def _conv_attribute_to_method(self):
         exceptions = get_mypy_exceptions(
             self.temp_python_file, self.updated_code
         )
@@ -185,88 +192,134 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     f"{field_name[0]}: " f"Literal['{literal_name}']",
                     f"def {field_name[0]}" "(self):\n\t\t...",
                 )
-        exceptions = get_mypy_exceptions(
-            self.temp_python_file, self.updated_code
-        )
         to_many_args_pattern = (
             r"error: Too many arguments for " r"\"([^\"]+)\""
         )
-        search = re.compile(to_many_args_pattern).search
-        while True:
-            many_args_exceptions = list(
-                map(search, filter(search, exceptions))
-            )
-            if not many_args_exceptions:
-                break
-            for exception in many_args_exceptions:
-                function_name = exception.group(1)
-                function_signature = self._get_function_signature(
-                    function_name, self.updated_code
-                )
-                if function_signature is None:
-                    continue
-                n_args = len(
-                    re.findall(
-                        r"\d+",
-                        function_signature,
-                    )
-                )
-                exceptions = get_mypy_exceptions(
-                    self.temp_python_file,
-                    self.updated_code.replace(
-                        function_signature,
-                        function_signature + f", arg{n_args}: None",
+        classes = ClassExtractor(
+            create_type_marker(self.config)
+        ).extract_classes(self.updated_code)
+        for class_name, class_code in classes.items():
+            if class_name in self._protocols_with_methods:
+                continue
+            search = re.compile(to_many_args_pattern).search
+            class_code = class_code.strip().replace(4 * " ", "\t")
+            commented_classes = 0
+            for _class_code in map(
+                classes.get,
+                filterfalse(
+                    class_name.__eq__,
+                    filterfalse(
+                        self._protocols_with_methods.__contains__, classes
                     ),
-                )
-                hint = self._handle_incompatible_type(
-                    function_name, exceptions
-                )
-                if hint != ANY or self.config.allow_any:
-                    self.updated_code = self.updated_code.replace(
-                        function_signature,
-                        function_signature + f", arg{n_args}: {hint}",
-                    )
-                else:
-                    self.updated_code = self.updated_code.replace(
-                        function_signature,
-                        function_signature + f", arg{n_args}",
-                    )
-                exceptions = get_mypy_exceptions(
-                    self.temp_python_file, self.updated_code
-                )
-        unexpected_kwargs_pattern = (
-            r"Unexpected keyword argument " r"\"([^\"]+)\" for \"([^\"]+)\""
-        )
-        search = re.compile(unexpected_kwargs_pattern).search
-        unexpected_kwargs_exceptions = map_reduce(
-            map(search, filter(search, exceptions)),
-            lambda exception: exception.group(2),
-            lambda exception: exception.group(1),
-        )
-        for (
-            function_name,
-            kwarg_names,
-        ) in unexpected_kwargs_exceptions.items():
-            for kwarg_name in set(kwarg_names):
-                function_signature = self._get_function_signature(
-                    function_name, self.updated_code
-                )
-                if function_signature is None:
-                    continue
-                exceptions = get_mypy_exceptions(
-                    self.temp_python_file,
-                    self.updated_code.replace(
-                        function_signature,
-                        function_signature + f", {kwarg_name}: None",
-                    ),
-                )
+                ),
+            ):
+                _class_code = _class_code.strip().replace(4 * " ", "\t")
                 self.updated_code = self.updated_code.replace(
-                    function_signature,
-                    function_signature
-                    + f", {kwarg_name}: {self._handle_incompatible_type(
-                        function_name, exceptions
-                    )}",
+                    _class_code, f'"""\n{_class_code}\n"""', 1
                 )
+                commented_classes += 1
+            exceptions = get_mypy_exceptions(
+                self.temp_python_file, self.updated_code
+            )
+            while True:
+                many_args_exceptions = list(
+                    map(search, filter(search, exceptions))
+                )
+                if not many_args_exceptions:
+                    break
+                for exception in many_args_exceptions:
+                    function_name = exception.group(1)
+                    function_signature = self._get_function_signature(
+                        function_name, class_code
+                    )
+                    if function_signature is None:
+                        continue
+                    n_args = len(
+                        re.findall(
+                            r"\d+",
+                            function_signature,
+                        )
+                    )
+                    exceptions = get_mypy_exceptions(
+                        self.temp_python_file,
+                        self.updated_code.replace(
+                            class_code,
+                            class_code.replace(
+                                function_signature,
+                                function_signature + f", arg{n_args}: None",
+                                1,
+                            ),
+                        ),
+                    )
+                    hint = self._handle_incompatible_type(
+                        function_name, exceptions
+                    )
+                    if hint != ANY or self.config.allow_any:
+                        new_class_code = class_code.replace(
+                            function_signature,
+                            function_signature + f", arg{n_args}: {hint}",
+                            1,
+                        )
+                    else:
+                        new_class_code = class_code.replace(
+                            function_signature,
+                            function_signature + f", arg{n_args}",
+                            1,
+                        )
+                    self.updated_code = self.updated_code.replace(
+                        class_code, new_class_code
+                    )
+                    class_code = new_class_code
+                    exceptions = get_mypy_exceptions(
+                        self.temp_python_file, self.updated_code
+                    )
+            unexpected_kwargs_pattern = (
+                r"Unexpected keyword argument "
+                r"\"([^\"]+)\" for \"([^\"]+)\""
+            )
+            search = re.compile(unexpected_kwargs_pattern).search
+            unexpected_kwargs_exceptions = map_reduce(
+                map(search, filter(search, exceptions)),
+                lambda exception: exception.group(2),
+                lambda exception: exception.group(1),
+            )
+            for (
+                function_name,
+                kwarg_names,
+            ) in unexpected_kwargs_exceptions.items():
+                for kwarg_name in set(kwarg_names):
+                    function_signature = self._get_function_signature(
+                        function_name, class_code
+                    )
+                    if function_signature is None:
+                        continue
+                    exceptions = get_mypy_exceptions(
+                        self.temp_python_file,
+                        self.updated_code.replace(
+                            class_code,
+                            class_code.replace(
+                                function_signature,
+                                function_signature + f", {kwarg_name}: None",
+                                1,
+                            ),
+                        ),
+                    )
+                    compatible_type = self._handle_incompatible_type(
+                        function_name, exceptions
+                    )
+                    self.updated_code = self.updated_code.replace(
+                        class_code,
+                        class_code.replace(
+                            function_signature,
+                            function_signature
+                            + f", {kwarg_name}: {compatible_type}",
+                            1,
+                        ),
+                    )
+            self.updated_code = self.updated_code.replace(
+                '"""', "", 2 * commented_classes
+            )
+            self._protocols_with_methods.add(class_name)
 
     def _handle_incompatible_type(
         self, function_name: str, exceptions: list[str]
@@ -369,7 +422,44 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 ),
             )
 
+        def add_subtypes(interface: str) -> str:
+            if interface in types_parametrized_with_one_parameter:
+                exceptions = get_mypy_exceptions(
+                    self.temp_python_file,
+                    self.updated_code.replace(
+                        f"Literal['{class_name}']", interface + "[None]"
+                    ),
+                )
+                subscription = self._get_missing_interface(
+                    class_name + "Subscript", exceptions
+                )
+                if subscription != ANY or self.config.allow_any:
+                    return interface + f"[{subscription}]"
+                return interface
+            if interface in types_parametrized_with_two_parameters:
+                exceptions = get_mypy_exceptions(
+                    self.temp_python_file,
+                    self.updated_code.replace(
+                        f"Literal['{class_name}']", interface + "[None, Any]"
+                    ),
+                )
+                subscription1 = self._get_missing_interface(
+                    class_name + "FirstSubscript", exceptions
+                )
+                exceptions = get_mypy_exceptions(
+                    self.temp_python_file,
+                    self.updated_code.replace(
+                        f"Literal['{class_name}']", interface + "[Any, None]"
+                    ),
+                )
+                subscription2 = self._get_missing_interface(
+                    class_name + "SecondSubscript", exceptions
+                )
+                return interface + f"[{subscription1}, {subscription2}]"
+            return interface
+
         valid_iterfaces = tuple(filter(is_interface_valid, valid_iterfaces))
+        valid_iterfaces = tuple(map(add_subtypes, valid_iterfaces))
         valid_external_lib_entries = tuple(
             filter(is_external_lib_valid, external_lib_entries)
         )
@@ -394,10 +484,14 @@ class TypeAddTransformer(ImportVisitingTransformer):
         )
         if not valid_iterfaces and not valid_external_lib_entries:
             return to_camelcase(class_name)
+
+        def add_collections(interface: str) -> str:
+            return (interface in abc_classes) * "collections.abc." + interface
+
         return f"Union[{', '.join(
             (
                 *tuple(
-                    map(lambda interface: (interface in abc_classes) * "collections.abc." + interface,  # noqa: E501
+                    map(add_collections,
                         valid_iterfaces
                         )
                 ),

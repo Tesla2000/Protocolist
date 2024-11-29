@@ -11,11 +11,11 @@ from .transform.class_extractor import GlobalClassExtractor
 
 
 def extract_methods_and_fields(code: str) -> tuple[set[str], set[str]]:
-    return set(re.findall(r"    def [^\(]+\([^\)]+\)[^:]*:", code)).difference(
-        ["__init__"]
-    ), set(
+    return set(
+        re.findall("\t" r"def [^\(]+\([^\)]+\)[^:]*:", code)
+    ).difference(["__init__"]), set(
         filter(
-            lambda line: re.findall(r"^    \w+\:", line),
+            lambda line: re.findall(r"^" "\t" r"\w+\:", line),
             code.splitlines(),
         )
     )

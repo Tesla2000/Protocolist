@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import libcst
-from libcst import Annotation
 from libcst import ImportFrom
 from libcst import Module
 from libcst import Name
+from libcst import Subscript
 
 from ...interfacer.transform.transformer import Transformer
-from ..annotation2string import subscript_element2string
 from ..config import Config
 
 
@@ -26,28 +25,15 @@ class ReplaceNames(Transformer):
             )
         )
 
-    def leave_Annotation(
-        self, original_node: "Annotation", updated_node: "Annotation"
-    ) -> "Annotation":
-        if not hasattr(updated_node.annotation, "slice"):
-            return updated_node
-        slices = updated_node.annotation.slice
-        unique_slices = tuple(
-            dict(zip(map(subscript_element2string, slices), slices)).values()
+    def leave_Subscript(
+        self, original_node: "Subscript", updated_node: "Subscript"
+    ) -> "Subscript":
+        """Deduplication"""
+        name = Module([updated_node]).code.partition("[")[0]
+        types = set(
+            Module([slice]).code.strip(", ") for slice in updated_node.slice
         )
-        if len(unique_slices) > 1:
-            return updated_node.with_changes(
-                annotation=updated_node.annotation.with_changes(
-                    slice=unique_slices
-                )
-            )
-        return updated_node.with_changes(
-            annotation=libcst.parse_statement(
-                subscript_element2string(unique_slices[0]).strip('"')
-            )
-            .body[0]
-            .value
-        )
+        return libcst.parse_expression(f'{name}[{", ".join(types)}]')
 
 
 class ReplaceImportsAndNames(ReplaceNames):
