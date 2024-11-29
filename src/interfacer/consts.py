@@ -1396,7 +1396,6 @@ types_parametrized_with_one_parameter = [
     "Awaitable",
     "Coroutine",
     "Sequence",
-    "Mapping",
     "KeysView",
     "ItemsView",
     "ValuesView",
@@ -1407,11 +1406,7 @@ types_parametrized_with_one_parameter = [
 types_parametrized_with_two_parameters = [
     "Dict",
     "DefaultDict",
-    "Union",
     "Callable",
-    "Tuple",
-    "Generator",
-    "AsyncGenerator",
     "Coroutine",
     "Mapping",
     "ChainMap",
@@ -1419,7 +1414,4 @@ types_parametrized_with_two_parameters = [
     "Annotated",
     "Callable",
     "Mapping",
-    "Generator",
-    "AsyncGenerator",
-    "Coroutine",
 ]

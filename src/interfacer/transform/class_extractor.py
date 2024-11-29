@@ -31,7 +31,11 @@ class ClassExtractor(ImportVisitingTransformer):
 
     def visit_ClassDef(self, node: "ClassDef") -> Optional[bool]:
         class_name = node.name.value
-        class_code = self.classes.get(class_name, Module([node]).code).lstrip()
+        class_code = (
+            self.classes.get(class_name, Module([node]).code)
+            .lstrip()
+            .replace(4 * " ", "\t")
+        )
         if any(base.value.value == "Protocol" for base in node.bases):
             self.protocols[class_name] = class_code
         self.class_nodes[class_name] = node
