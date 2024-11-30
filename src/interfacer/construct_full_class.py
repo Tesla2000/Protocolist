@@ -13,6 +13,7 @@ from libcst import IndentedBlock
 from more_itertools.more import always_iterable
 from numpy.random.mtrand import Sequence
 
+from src.interfacer.extract_bases import extract_bases
 from src.interfacer.import2path import import2path
 from src.interfacer.transform.class_extractor import GlobalClassExtractor
 
@@ -23,7 +24,7 @@ def construct_full_class(
     previous_classes: OrderedDict[str, "ClassDef"],
     imports: dict[str, Iterable[str]],
 ) -> ClassDef:
-    bases = tuple(base.value.value for base in class_def.bases)
+    bases = tuple(extract_bases(class_def))
 
     def _find_base(base_name: str) -> Optional[ClassDef]:
         if base_class := previous_classes.get(base_name):

@@ -16,7 +16,9 @@ class BothProtocolSaver(ProtocolSaver):
     def _modify_protocols(self) -> None:
         code = self.config.interfaces_path.read_text()
         new_code = code
-        class_extractor = ClassExtractor(create_type_marker(self.config))
+        class_extractor = ClassExtractor(
+            self.config, create_type_marker(self.config)
+        )
         classes = class_extractor.extract_classes(code)
         partial2composite = {
             class_name: re.findall(r"\D+", class_name)[0]

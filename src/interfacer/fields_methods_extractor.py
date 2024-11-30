@@ -10,6 +10,8 @@ from libcst import ClassDef
 from libcst import FunctionDef
 from libcst import Module
 
+from src.interfacer.extract_bases import extract_bases
+
 
 class _MethodsAndFields(NamedTuple):
     methods: Sequence[str]
@@ -38,7 +40,7 @@ class FieldsAndMethodsExtractor(libcst.CSTTransformer):
         return super().visit_AnnAssign(node)
 
     def visit_ClassDef(self, node: "ClassDef") -> None:
-        self.bases = set(base.value.value for base in node.bases)
+        self.bases = set(extract_bases(node))
         return super().visit_ClassDef(node)
 
     @classmethod
