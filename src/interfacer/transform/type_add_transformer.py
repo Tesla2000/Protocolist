@@ -535,7 +535,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         def get_signature(match: re.Match) -> Optional[str]:
             return self._get_function_signature(match.group(1), class_code)
 
-        for _ in range(10):
+        for _ in range(100):
 
             many_args_exceptions = list(
                 map(search, filter(search, exceptions))

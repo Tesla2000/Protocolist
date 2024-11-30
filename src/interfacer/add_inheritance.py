@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import string
 from itertools import product
 from pathlib import Path
 
@@ -19,6 +20,7 @@ def add_inheritance(
 ):
     file_content = file_path.read_text()
     interface_content = config.interfaces_path.read_text()
+    interface_imports = interface_content.partition("class ")[0]
     file_class_extractor = InheritanceRemovingClassExtractor(
         config, create_type_marker(config)
     )
@@ -36,7 +38,7 @@ def add_inheritance(
     }
     interface_attributes = {
         key: extract_method_names_and_field_names(
-            value, file_path, class_extractor
+            value, config.interfaces_path, class_extractor
         )
         for key, value in interface_classes.items()
     }
@@ -44,6 +46,10 @@ def add_inheritance(
 
     def _check_fields_and_methods(item: tuple[str, str]) -> bool:
         class_name, interface_name = item
+        if (class_name, interface_name.rstrip(string.digits)) in inheritances:
+            return False
+        if class_name not in classes:
+            return False
         interface_method_names, interface_field_names = interface_attributes[
             interface_name
         ]
@@ -54,7 +60,12 @@ def add_inheritance(
 
     for class_name, interface_name in filter(
         _check_fields_and_methods,
-        product(file_classes.keys(), interface_classes.keys()),
+        product(
+            file_classes.keys(),
+            sorted(
+                interface_classes.keys(), key=lambda name: name[-1].isnumeric()
+            ),
+        ),
     ):
         class_code = classes[class_name]
         class_inheritances = re.findall(
@@ -77,10 +88,21 @@ def add_inheritance(
             updated_file_content = file_content.replace(
                 class_code, new_class_code, 1
             )
+        applicable_interfaces = {
+            name: code
+            for name, code in interface_classes.items()
+            if name == interface_name
+            or (
+                not interface_name[0].isnumeric()
+                and name.rstrip(string.digits) == interface_name
+            )
+        }
         inheritance_code = re.sub(
             r"from interfaces\.interfaces import \S+",
             "",
-            interface_content + updated_file_content + f"\n{class_name}()",
+            f"{interface_imports}\n"
+            f"{'\n'.join(applicable_interfaces.values())}\n"
+            f"{updated_file_content}\n{class_name}()",
         )
         exceptions = get_mypy_exceptions(
             config.mypy_folder / "_temp.py", inheritance_code
@@ -95,12 +117,27 @@ def add_inheritance(
         ):
             continue
         if any(
-            map(
-                re.compile(
-                    rf"Incompatible types in assignment \(expression has type \"[^\"]+\", base class \"{interface_name}\""  # noqa: E501
-                ).search,
-                exceptions,
+            any(
+                map(
+                    re.compile(
+                        rf"Incompatible types in assignment \(expression has type \"[^\"]+\", base class \"{name}\""  # noqa: E501
+                    ).search,
+                    exceptions,
+                )
             )
+            for name in applicable_interfaces.keys()
+        ):
+            continue
+        if any(
+            any(
+                map(
+                    re.compile(
+                        rf"Signature of \"[^\"]+\" incompatible with supertype \"{name}\""  # noqa: E501
+                    ).search,
+                    exceptions,
+                )
+            )
+            for name in applicable_interfaces.keys()
         ):
             continue
         classes[class_name] = new_class_code

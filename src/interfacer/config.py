@@ -29,9 +29,7 @@ class Config(BaseModel):
     interfaces_path_origin: Path
     allow_any: bool = False
     mark_option: MarkOption = MarkOption.ALL
-    protocol_presentation: PresentationOption = (
-        PresentationOption.PARTIAL_PROTOCOLS
-    )
+    protocol_presentation: PresentationOption = PresentationOption.BOTH
     external_libraries: Optional[Iterable[str]] = tuple()
     excluded_libraries: Iterable[str] = tuple()
     tab_length: int = 4
