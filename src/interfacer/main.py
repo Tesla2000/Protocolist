@@ -31,9 +31,10 @@ def _main(config: Config) -> int:
         filter(lambda path: path.suffix == ".py", map(Path, config.pos_args))
     )
     # fail = apply_pytype(config)
-    classes = ClassExtractor(create_type_marker(config)).extract_classes(
-        config.interfaces_path.read_text()
-    )
+    global_class_extractor = GlobalClassExtractor(config)
+    classes = ClassExtractor(
+        config, create_type_marker(config)
+    ).extract_classes(config.interfaces_path.read_text())
     interfaces = dict(
         sorted(
             (
@@ -48,7 +49,6 @@ def _main(config: Config) -> int:
         )
     )
     protocols = ProtocolDict(int, **interfaces)
-    global_class_extractor = GlobalClassExtractor(config)
     for filepath in paths:
         fail |= create_protocols(
             filepath,

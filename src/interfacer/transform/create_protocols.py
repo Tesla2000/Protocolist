@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import collections
-import traceback
 import typing
 from itertools import chain
 from itertools import filterfalse
@@ -15,7 +14,6 @@ from libcst import Name
 from mypy.memprofile import defaultdict
 
 from ..config import Config
-from ..consts import ANY
 from ..consts import builtin_types
 from ..protocol_markers.types_marker_factory import create_type_marker
 from .class_extractor import ClassExtractor
@@ -34,18 +32,14 @@ def create_protocols(
     transformer = TypeAddTransformer(
         config, protocols, create_type_marker(config), class_extractor
     )
-    try:
-        new_code = module.visit(transformer).code
-    except Exception:
-        traceback.print_exc()
-        raise
+    new_code = module.visit(transformer).code
     assert len(transformer.imports) == len(
         dict(transformer.imports)
     ), "We don't support that yet. Contact Protocolist creator please"
     external_imports = dict(transformer.imports)
-    protocols = ClassExtractor(create_type_marker(config)).extract_protocols(
-        config.interfaces_path.read_text()
-    )
+    protocols = ClassExtractor(
+        config, create_type_marker(config)
+    ).extract_protocols(config.interfaces_path.read_text())
     annotations = tuple(
         annotation
         for annotation in filterfalse(
@@ -57,8 +51,7 @@ def create_protocols(
                 )
             ),
         )
-        if (annotation != ANY or config.allow_any)
-        and (
+        if (
             annotation in protocols
             or annotation in dir(typing)
             or annotation in dir(collections.abc)
@@ -93,7 +86,7 @@ def create_protocols(
             )
         )
         + new_code
-    )
+    ).replace("\t", config.tab_length * " ")
     if new_code != code:
         filepath.write_text(new_code)
         print(f"File {filepath} was modified")
@@ -102,17 +95,9 @@ def create_protocols(
 
 
 def _split_annotations(annotation: str) -> list[str]:
-    # if not annotation.startswith("Union["):
-    #     return [annotation]
     names_getter = _NamesGetter()
     libcst.parse_expression(annotation).visit(names_getter)
     return names_getter.names
-    # return list(
-    #     annotation.strip().replace("collections.abc.", "")
-    #     for annotation in annotation.replace("Union[", "")
-    #     .removesuffix("]")
-    #     .split(",")
-    # ) + ["Union"]
 
 
 class _NamesGetter(libcst.CSTTransformer):

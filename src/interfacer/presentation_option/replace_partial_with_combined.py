@@ -30,8 +30,10 @@ class ReplaceNames(Transformer):
     ) -> "Subscript":
         """Deduplication"""
         name = Module([updated_node]).code.partition("[")[0]
+        if name != "Union":
+            return updated_node
         types = set(
-            Module([slice]).code.strip(", ") for slice in updated_node.slice
+            Module([slice]).code.strip(", \n") for slice in updated_node.slice
         )
         return libcst.parse_expression(f'{name}[{", ".join(types)}]')
 

@@ -42,7 +42,7 @@ class ProtocolSaver(ABC):
         while replace_dictionary != self.replace_dictionary:
             replace_dictionary = self.replace_dictionary.copy()
             extracted_classes = ClassExtractor(
-                create_type_marker(self.config)
+                self.config, create_type_marker(self.config)
             ).extract_classes(code)
             grouped_classes = map_reduce(
                 extracted_classes.items(),

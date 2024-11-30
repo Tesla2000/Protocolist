@@ -6,13 +6,20 @@ import libcst
 from libcst import Import
 from libcst import ImportFrom
 
+from src.interfacer.config import Config
 from src.interfacer.protocol_markers.marker import TypeMarker
+from src.interfacer.protocol_markers.types_marker_factory import (
+    create_type_marker,
+)
 
 
 class ImportVisitingTransformer(libcst.CSTTransformer):
-    def __init__(self, type_marker: TypeMarker):
+    def __init__(
+        self, config: Config, type_marker: Optional[TypeMarker] = None
+    ):
         super().__init__()
-        self.type_marker = type_marker
+        self.type_marker = type_marker or create_type_marker(config)
+        self.config = config
 
     def visit_Import(self, node: "Import") -> Optional[bool]:
         self.type_marker.register_import(node)

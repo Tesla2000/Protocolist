@@ -8,6 +8,7 @@ from itertools import filterfalse
 from typing import Optional
 from typing import Union
 
+import libcst
 from libcst import ClassDef
 from libcst import FlattenSentinel
 from libcst import FunctionDef
@@ -59,7 +60,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         types_marker: TypeMarker,
         class_extractor: GlobalClassExtractor,
     ):
-        super().__init__(types_marker)
+        super().__init__(config, types_marker)
         self._previous_classes = OrderedDict()
         self.class_extractor = class_extractor
         self.config = config
@@ -145,7 +146,9 @@ class TypeAddTransformer(ImportVisitingTransformer):
         protocols = self._get_created_protocols()
         for prototype_code in protocols.values():
             self.updated_code = self.updated_code.replace(
-                prototype_code.replace(4 * " ", "\t"), "", 1
+                prototype_code.replace(self.config.tab_length * " ", "\t"),
+                "",
+                1,
             )
         interface_code = import_statement
         if self.config.interfaces_path.exists():
@@ -171,7 +174,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         self.config.interfaces_path.write_text(interface_code)
 
     def _get_created_protocols(self) -> dict[str, str]:
-        return ClassExtractor(self.type_marker).extract_protocols(
+        return ClassExtractor(self.config, self.type_marker).extract_protocols(
             self.updated_code
         )
 
@@ -192,17 +195,15 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     f"{field_name[0]}: " f"Literal['{literal_name}']",
                     f"def {field_name[0]}" "(self):\n\t\t...",
                 )
-        to_many_args_pattern = (
-            r"error: Too many arguments for " r"\"([^\"]+)\""
-        )
         classes = ClassExtractor(
-            create_type_marker(self.config)
+            self.config, create_type_marker(self.config)
         ).extract_classes(self.updated_code)
         for class_name, class_code in classes.items():
             if class_name in self._protocols_with_methods:
                 continue
-            search = re.compile(to_many_args_pattern).search
-            class_code = class_code.strip().replace(4 * " ", "\t")
+            class_code = class_code.strip().replace(
+                self.config.tab_length * " ", "\t"
+            )
             commented_classes = 0
             for _class_code in map(
                 classes.get,
@@ -213,66 +214,14 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     ),
                 ),
             ):
-                _class_code = _class_code.strip().replace(4 * " ", "\t")
+                _class_code = _class_code.strip().replace(
+                    self.config.tab_length * " ", "\t"
+                )
                 self.updated_code = self.updated_code.replace(
-                    _class_code, f'"""\n{_class_code}\n"""', 1
+                    _class_code, f"'''\n{_class_code}\n'''", 1
                 )
                 commented_classes += 1
-            exceptions = get_mypy_exceptions(
-                self.temp_python_file, self.updated_code
-            )
-            while True:
-                many_args_exceptions = list(
-                    map(search, filter(search, exceptions))
-                )
-                if not many_args_exceptions:
-                    break
-                for exception in many_args_exceptions:
-                    function_name = exception.group(1)
-                    function_signature = self._get_function_signature(
-                        function_name, class_code
-                    )
-                    if function_signature is None:
-                        continue
-                    n_args = len(
-                        re.findall(
-                            r"\d+",
-                            function_signature,
-                        )
-                    )
-                    exceptions = get_mypy_exceptions(
-                        self.temp_python_file,
-                        self.updated_code.replace(
-                            class_code,
-                            class_code.replace(
-                                function_signature,
-                                function_signature + f", arg{n_args}: None",
-                                1,
-                            ),
-                        ),
-                    )
-                    hint = self._handle_incompatible_type(
-                        function_name, exceptions
-                    )
-                    if hint != ANY or self.config.allow_any:
-                        new_class_code = class_code.replace(
-                            function_signature,
-                            function_signature + f", arg{n_args}: {hint}",
-                            1,
-                        )
-                    else:
-                        new_class_code = class_code.replace(
-                            function_signature,
-                            function_signature + f", arg{n_args}",
-                            1,
-                        )
-                    self.updated_code = self.updated_code.replace(
-                        class_code, new_class_code
-                    )
-                    class_code = new_class_code
-                    exceptions = get_mypy_exceptions(
-                        self.temp_python_file, self.updated_code
-                    )
+            self._add_args(class_code, class_name)
             unexpected_kwargs_pattern = (
                 r"Unexpected keyword argument "
                 r"\"([^\"]+)\" for \"([^\"]+)\""
@@ -317,7 +266,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                         ),
                     )
             self.updated_code = self.updated_code.replace(
-                '"""', "", 2 * commented_classes
+                "'''", "", 2 * commented_classes
             )
             self._protocols_with_methods.add(class_name)
 
@@ -455,7 +404,13 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 subscription2 = self._get_missing_interface(
                     class_name + "SecondSubscript", exceptions
                 )
-                return interface + f"[{subscription1}, {subscription2}]"
+                if (
+                    subscription1 != ANY
+                    or subscription2 != ANY
+                    or self.config.allow_any
+                ):
+                    return interface + f"[{subscription1}, {subscription2}]"
+                return interface
             return interface
 
         valid_iterfaces = tuple(filter(is_interface_valid, valid_iterfaces))
@@ -557,29 +512,8 @@ class TypeAddTransformer(ImportVisitingTransformer):
             return new_interface
         if new_interface == ANY and not self.config.allow_any:
             return old_interface
-        if old_interface.startswith("Union["):
-            old_elements = tuple(
-                map(
-                    str.strip,
-                    old_interface.removeprefix("Union[")
-                    .removesuffix("]")
-                    .split(","),
-                )
-            )
-        else:
-            old_elements = [old_interface]
-        if new_interface.startswith("Union["):
-            new_elements = tuple(
-                map(
-                    str.strip,
-                    new_interface.replace("Union[", "", 1)
-                    .removesuffix("]")
-                    .split(","),
-                )
-            )
-        else:
-            new_elements = [new_interface]
-
+        new_elements = divided_to_sub_elements(new_interface)
+        old_elements = divided_to_sub_elements(old_interface)
         combined_elements = tuple(
             chain.from_iterable(
                 (old_elements, set(new_elements).difference(old_elements))
@@ -588,3 +522,101 @@ class TypeAddTransformer(ImportVisitingTransformer):
         if len(combined_elements) == 1:
             return tuple(combined_elements)[0]
         return f"Union[{', '.join(combined_elements)}]"
+
+    def _add_args(self, class_code: str, class_name: str):
+        exceptions = get_mypy_exceptions(
+            self.temp_python_file, self.updated_code
+        )
+        to_many_args_pattern = (
+            r"error: Too many arguments for " r"\"([^\"]+)\""
+        )
+        search = re.compile(to_many_args_pattern).search
+
+        def get_signature(match: re.Match) -> Optional[str]:
+            return self._get_function_signature(match.group(1), class_code)
+
+        for _ in range(10):
+
+            many_args_exceptions = list(
+                map(search, filter(search, exceptions))
+            )
+            if not any(filter(None, map(get_signature, many_args_exceptions))):
+                return
+            for exception in many_args_exceptions:
+                function_name = exception.group(1)
+                function_signature = self._get_function_signature(
+                    function_name, class_code
+                )
+                if function_signature is None:
+                    continue
+                n_args = len(
+                    re.findall(
+                        r"\d+",
+                        function_signature,
+                    )
+                )
+                exceptions = get_mypy_exceptions(
+                    self.temp_python_file,
+                    self.updated_code.replace(
+                        class_code,
+                        class_code.replace(
+                            function_signature,
+                            function_signature + f", arg{n_args}: None",
+                            1,
+                        ),
+                    ),
+                )
+                to_little_args_pattern = (
+                    r"error: Missing positional argument "
+                    f'"arg{n_args}" in call to '
+                    f'"{function_name}" of "{class_name}"'
+                )
+                if any(
+                    map(re.compile(to_little_args_pattern).search, exceptions)
+                ):
+                    return
+                hint = self._handle_incompatible_type(
+                    function_name, exceptions
+                )
+                if hint != ANY or self.config.allow_any:
+                    new_class_code = class_code.replace(
+                        function_signature,
+                        function_signature + f", arg{n_args}: {hint}",
+                        1,
+                    )
+                else:
+                    new_class_code = class_code.replace(
+                        function_signature,
+                        function_signature + f", arg{n_args}",
+                        1,
+                    )
+                self.updated_code = self.updated_code.replace(
+                    class_code, new_class_code
+                )
+                class_code = new_class_code
+                exceptions = get_mypy_exceptions(
+                    self.temp_python_file, self.updated_code
+                )
+        raise ValueError
+
+
+def divided_to_sub_elements(interface: str) -> set[str]:
+    new_elements = set(
+        Module([slice]).code.strip(", ")
+        for slice in getattr(libcst.parse_expression(interface), "slice", [])
+    )
+    if (
+        not len(new_elements)
+        or (
+            len(new_elements) < 2
+            and interface.partition("[")[0]
+            in types_parametrized_with_one_parameter
+        )
+        or (
+            len(new_elements) < 3
+            and interface.partition("[")[0]
+            in types_parametrized_with_two_parameters
+        )
+    ):
+        return {interface}
+    return new_elements

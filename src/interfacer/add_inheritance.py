@@ -20,12 +20,14 @@ def add_inheritance(
     file_content = file_path.read_text()
     interface_content = config.interfaces_path.read_text()
     file_class_extractor = InheritanceRemovingClassExtractor(
-        create_type_marker(config)
+        config, create_type_marker(config)
     )
     file_classes = file_class_extractor.extract_classes(file_content)
     interface_classes = class_extractor.get(config.interfaces_path).classes
     inheritances = []
-    file_content = file_class_extractor.updated_module.code
+    file_content = file_class_extractor.updated_module.code.replace(
+        config.tab_length * " ", "\t"
+    )
     class_attributes = {
         key: extract_method_names_and_field_names(
             value, file_path, class_extractor
@@ -112,7 +114,7 @@ def add_inheritance(
             )
         )
         + file_content
-    )
+    ).replace("\t", config.tab_length * " ")
     result = file_content != file_path.read_text()
     if result:
         print(f"File {file_path} was modified")
