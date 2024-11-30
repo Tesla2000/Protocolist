@@ -46,18 +46,20 @@ class ClassExtractor(ImportVisitingTransformer):
             return super().visit_ClassDef(node)
         self.class_nodes[class_name] = node
         self.classes[class_name] = class_code
-        visitor = type(self)(self.config, self.type_marker)
-        node.body.visit(visitor)
-        self._internal_classes.update(visitor.classes)
+        self._update_internal_classes(node)
         return super().visit_ClassDef(node)
 
     def extract_classes(self, code) -> dict[str, str]:
-        module = libcst.parse_module(code)
+        module = libcst.parse_module(
+            code.replace(self.config.tab_length * " ", "\t")
+        )
         module.visit(self)
         return self.classes
 
     def extract_protocols(self, code) -> dict[str, str]:
-        module = libcst.parse_module(code)
+        module = libcst.parse_module(
+            code.replace(self.config.tab_length * " ", "\t")
+        )
         module.visit(self)
         return self.protocols
 
@@ -68,6 +70,11 @@ class ClassExtractor(ImportVisitingTransformer):
     @property
     def imported_interfaces(self):
         return self.type_marker.imported_interfaces
+
+    def _update_internal_classes(self, node: ClassDef):
+        visitor = type(self)(self.config, self.type_marker)
+        node.body.visit(visitor)
+        self._internal_classes.update(visitor.classes)
 
 
 class GlobalClassExtractor:

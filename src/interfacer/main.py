@@ -63,7 +63,7 @@ def _main(config: Config) -> int:
         )
     fail |= os.system(
         f"reorder-python-imports {' '.join(config.pos_args)} "
-        f"{config.interfaces_path.absolute()}"
+        f"{config.interfaces_path.absolute()} --py39-plus"
     )
     fail |= os.system(
         f"autoflake --in-place --remove-all-unused-imports "

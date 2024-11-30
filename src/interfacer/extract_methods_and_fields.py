@@ -24,6 +24,7 @@ def extract_methods_and_fields(code: str) -> tuple[set[str], set[str]]:
 def extract_method_names_and_field_names(
     code: str, file_path: Path, class_extractor: GlobalClassExtractor
 ) -> tuple[set[str], set[str]]:
+    class_name = re.findall(r"class ([^\(^:]+)", code)[0]
     methods, fields, bases = (
         FieldsAndMethodsExtractor.get_methods_fields_and_bases(code)
     )
@@ -43,7 +44,7 @@ def extract_method_names_and_field_names(
     )
     _abc_classes = {item[0]: item for item in abc_classes}
     tuple(
-        method_names.update(_builtin_types[base][-1])
+        method_names.update(_abc_classes[base][-1])
         for base in bases
         if base in _abc_classes
     )
@@ -61,7 +62,7 @@ def extract_method_names_and_field_names(
             )
         )
         for base in bases
-        if base in classes
+        if base in classes and base != class_name
     )
     tuple(
         tuple(
