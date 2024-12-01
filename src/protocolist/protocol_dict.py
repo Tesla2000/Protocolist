@@ -4,7 +4,7 @@ from collections.abc import Iterator
 
 from mypy.memprofile import defaultdict
 
-from src.interfacer.to_camelcase import to_camelcase
+from .to_camelcase import to_camelcase
 
 
 class ProtocolDict(defaultdict):

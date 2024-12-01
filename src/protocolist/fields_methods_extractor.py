@@ -10,7 +10,7 @@ from libcst import ClassDef
 from libcst import FunctionDef
 from libcst import Module
 
-from src.interfacer.extract_bases import extract_bases
+from .extract_bases import extract_bases
 
 
 class _MethodsAndFields(NamedTuple):

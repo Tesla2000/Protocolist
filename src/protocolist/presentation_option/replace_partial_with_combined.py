@@ -6,8 +6,8 @@ from libcst import Module
 from libcst import Name
 from libcst import Subscript
 
-from ...interfacer.transform.transformer import Transformer
 from ..config import Config
+from ..transform.transformer import Transformer
 
 
 class ReplaceNames(Transformer):

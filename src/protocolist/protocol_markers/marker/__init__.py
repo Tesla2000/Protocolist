@@ -3,7 +3,7 @@ from __future__ import annotations
 from importlib import import_module
 from pathlib import Path
 
-from src.interfacer.protocol_markers.marker.type_marker import TypeMarker
+from ...protocol_markers.marker.type_marker import TypeMarker
 
 
 def import_python(root: Path):

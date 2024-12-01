@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "interfacer"
+name = "protocolist"
 version = "0.1.0"
 description = "Fills missing types and creates protocal instances to interface"
 authors = ["Tesla2000 <fratajczak124@gmail.com>"]
@@ -24,4 +24,4 @@ requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.poetry.scripts]
-interfacer = "interfacer:main"
+protocolist = "protocolist.main:main"

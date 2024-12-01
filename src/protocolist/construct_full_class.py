@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from collections.abc import Container
+from collections.abc import Sequence
 from itertools import chain
 from itertools import takewhile
 from typing import Optional
@@ -11,12 +12,11 @@ from libcst import ClassDef
 from libcst import FunctionDef
 from libcst import IndentedBlock
 from more_itertools.more import always_iterable
-from numpy.random.mtrand import Sequence
 
-from src.interfacer.extract_bases import extract_bases
-from src.interfacer.import2path import import2path
-from src.interfacer.transform.class_extractor import GlobalClassExtractor
-from src.interfacer.utils.is_import_valid import is_import_valid
+from .extract_bases import extract_bases
+from .import2path import import2path
+from .transform.class_extractor import GlobalClassExtractor
+from .utils.is_import_valid import is_import_valid
 
 
 def construct_full_class(
