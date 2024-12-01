@@ -127,7 +127,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 break
         else:
             raise ValueError
-        self.save_protocols()
+        self._save_protocols()
         return self._update_parameters(updated_node)
 
     def new_protocols_code(self, code: str) -> str:
@@ -160,7 +160,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         assert isinstance(function_def, FunctionDef)
         return function_def
 
-    def save_protocols(self):
+    def _save_protocols(self):
         protocols = self._get_created_protocols()
         for prototype_code in protocols.values():
             self.updated_code = self.updated_code.replace(
@@ -472,14 +472,14 @@ class TypeAddTransformer(ImportVisitingTransformer):
         return f"Union[{', '.join(
             (
                 *tuple(
-                    map(add_collections,
-                        valid_iterfaces
-                        )
+                    sorted(map(add_collections,
+                               valid_iterfaces
+                               ))
                 ),
                 *tuple(
-                    map(lambda entry: entry.item_name,
-                        valid_external_lib_entries
-                        )
+                    sorted(map(lambda entry: entry.item_name,
+                               valid_external_lib_entries
+                               ))
                 ),
                 to_camelcase(class_name)
             )
@@ -543,7 +543,10 @@ class TypeAddTransformer(ImportVisitingTransformer):
         old_elements = divided_to_sub_elements(old_interface)
         combined_elements = tuple(
             chain.from_iterable(
-                (old_elements, set(new_elements).difference(old_elements))
+                (
+                    old_elements,
+                    sorted(set(new_elements).difference(old_elements)),
+                )
             )
         )
         if len(combined_elements) == 1:

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import string
 
 from more_itertools.more import map_reduce
 
@@ -22,8 +23,9 @@ class BothProtocolSaver(ProtocolSaver):
         )
         classes = class_extractor.extract_classes(code)
         partial2composite = {
-            class_name: re.findall(r"\D+", class_name)[0]
+            class_name: re.sub(r"\d+", "", class_name)
             for class_name in classes.keys()
+            if any(map(string.digits.__contains__, class_name))
         }
         grouped_classes = map_reduce(
             partial2composite.items(),
