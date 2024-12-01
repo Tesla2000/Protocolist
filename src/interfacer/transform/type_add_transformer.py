@@ -73,6 +73,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         self.temp_python_file = self.config.mypy_folder / "_temp.py"
         self.annotations = {}
         self.imports = set()
+        self.full_annotation_to_new = {}
         self._lambda_params = set()
         self._classes_of_methods: dict[FunctionDef, ClassDef] = {}
         self._protocols_with_methods = set()
@@ -105,14 +106,17 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     continue
                 exceptions = get_mypy_exceptions(
                     self.temp_python_file,
-                    self.updated_code.replace(
-                        f"Literal['{protocol}']", "None"
+                    self.new_protocols_code(
+                        self.updated_code.replace(
+                            f"Literal['{protocol}']", "None"
+                        )
                     ),
                 )
-                interface = self._get_missing_interface(protocol, exceptions)
+                interface_ = self._get_missing_interface(protocol, exceptions)
                 interface = self._combine_saved_and_new_interface(
-                    interface, protocol
+                    interface_, protocol
                 )
+                self.full_annotation_to_new[interface] = interface_
                 self.updated_code = self.updated_code.replace(
                     f"Literal['{protocol}']", interface
                 )
@@ -125,6 +129,13 @@ class TypeAddTransformer(ImportVisitingTransformer):
             raise ValueError
         self.save_protocols()
         return self._update_parameters(updated_node)
+
+    def new_protocols_code(self, code: str) -> str:
+        for full_annotation, new_annotation in sorted(
+            self.full_annotation_to_new.items(), key=lambda item: -len(item[0])
+        ):
+            code = code.replace(f": {full_annotation}", f": {new_annotation}")
+        return code
 
     def visit_ClassDef(self, node: "ClassDef") -> Optional[bool]:
         full_class_node = construct_full_class(
@@ -382,8 +393,10 @@ class TypeAddTransformer(ImportVisitingTransformer):
             if interface in types_parametrized_with_one_parameter:
                 exceptions = get_mypy_exceptions(
                     self.temp_python_file,
-                    self.updated_code.replace(
-                        f"Literal['{class_name}']", interface + "[None]"
+                    self.new_protocols_code(
+                        self.updated_code.replace(
+                            f"Literal['{class_name}']", interface + "[None]"
+                        )
                     ),
                 )
                 subscription = self._get_missing_interface(
@@ -395,8 +408,11 @@ class TypeAddTransformer(ImportVisitingTransformer):
             if interface in types_parametrized_with_two_parameters:
                 exceptions = get_mypy_exceptions(
                     self.temp_python_file,
-                    self.updated_code.replace(
-                        f"Literal['{class_name}']", interface + "[None, Any]"
+                    self.new_protocols_code(
+                        self.updated_code.replace(
+                            f"Literal['{class_name}']",
+                            interface + "[None, Any]",
+                        )
                     ),
                 )
                 subscription1 = self._get_missing_interface(
@@ -404,8 +420,11 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 )
                 exceptions = get_mypy_exceptions(
                     self.temp_python_file,
-                    self.updated_code.replace(
-                        f"Literal['{class_name}']", interface + "[Any, None]"
+                    self.new_protocols_code(
+                        self.updated_code.replace(
+                            f"Literal['{class_name}']",
+                            interface + "[Any, None]",
+                        )
                     ),
                 )
                 subscription2 = self._get_missing_interface(
