@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import inspect
+from collections.abc import Iterable
+from collections.abc import Iterator
+from collections.abc import Sequence
 from dataclasses import dataclass
 from functools import lru_cache
 from importlib import import_module
@@ -8,13 +11,10 @@ from importlib.metadata import packages_distributions
 from itertools import chain
 from types import ModuleType
 from typing import Any
-from typing import Iterable
-from typing import Iterator
 from typing import Optional
-from typing import Sequence
 
-from src.interfacer.consts import abc_classes
-from src.interfacer.consts import builtin_types
+from .consts import abc_classes
+from .consts import builtin_types
 
 
 @dataclass(slots=True)

@@ -8,14 +8,14 @@ import libcst
 from libcst import ClassDef
 from libcst import Module
 
-from src.interfacer.config import Config
-from src.interfacer.consts import protocol_replacement_name
-from src.interfacer.extract_bases import extract_bases
-from src.interfacer.protocol_markers.marker import TypeMarker
-from src.interfacer.protocol_markers.types_marker_factory import (
+from ..config import Config
+from ..consts import protocol_replacement_name
+from ..extract_bases import extract_bases
+from ..protocol_markers.marker import TypeMarker
+from ..protocol_markers.types_marker_factory import (
     create_type_marker,
 )
-from src.interfacer.transform.import_visiting_transformer import (
+from ..transform.import_visiting_transformer import (
     ImportVisitingTransformer,
 )
 

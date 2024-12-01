@@ -1,16 +1,22 @@
 ## Running
 
-You can run script with docker or python
+You can run script with docker, python or from cmd
 
 ### Python
 ```shell
-python main.py --config_file src/interfacer/config_sample.toml
+python main.py --config_file src/protocolist/config_sample.toml
+```
+
+### Cmd
+```shell
+poetry install
+poetry run protocolist
 ```
 
 ### Docker
 
 ```shell
-docker build -t Interfacer .
-docker run -it Interfacer /bin/sh
+docker build -t Protocolist .
+docker run -it Protocolist /bin/sh
 python main.py
 ```

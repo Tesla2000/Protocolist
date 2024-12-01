@@ -21,11 +21,11 @@ from libcst import Subscript
 from libcst import SubscriptElement
 from mypy.memprofile import defaultdict
 
-from src.interfacer.annotation2string import annotation2string
-from src.interfacer.config import Config
-from src.interfacer.protocol_dict import ProtocolDict
-from src.interfacer.protocol_markers.mark_options import MarkOption
-from src.interfacer.to_camelcase import to_camelcase
+from ...annotation2string import annotation2string
+from ...config import Config
+from ...protocol_dict import ProtocolDict
+from ...protocol_markers.mark_options import MarkOption
+from ...to_camelcase import to_camelcase
 
 
 class TypeMarker(ABC):

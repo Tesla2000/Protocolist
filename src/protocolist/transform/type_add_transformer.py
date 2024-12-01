@@ -20,36 +20,36 @@ from libcst import Param
 from libcst import RemovalSentinel
 from more_itertools import map_reduce
 
-from src.interfacer.config import Config
-from src.interfacer.construct_full_class import construct_full_class
-from src.interfacer.consts import abc_classes
-from src.interfacer.consts import ANY
-from src.interfacer.consts import builtin_types
-from src.interfacer.consts import dunder_method_params
-from src.interfacer.consts import dunder_methods
-from src.interfacer.consts import exception2method
-from src.interfacer.consts import hint_translations
-from src.interfacer.consts import import_statement
-from src.interfacer.consts import protocol_replacement_name
-from src.interfacer.consts import types_parametrized_with_one_parameter
-from src.interfacer.consts import types_parametrized_with_two_parameters
-from src.interfacer.get_external_library_classes import ExternalLibElement
-from src.interfacer.get_external_library_classes import (
+from ..config import Config
+from ..construct_full_class import construct_full_class
+from ..consts import abc_classes
+from ..consts import ANY
+from ..consts import builtin_types
+from ..consts import dunder_method_params
+from ..consts import dunder_methods
+from ..consts import exception2method
+from ..consts import hint_translations
+from ..consts import import_statement
+from ..consts import protocol_replacement_name
+from ..consts import types_parametrized_with_one_parameter
+from ..consts import types_parametrized_with_two_parameters
+from ..get_external_library_classes import ExternalLibElement
+from ..get_external_library_classes import (
     get_external_library_classes,
 )
-from src.interfacer.get_mypy_exceptions import get_mypy_exceptions
-from src.interfacer.protocol_dict import ProtocolDict
-from src.interfacer.protocol_markers.marker.type_marker import TypeMarker
-from src.interfacer.protocol_markers.types_marker_factory import (
+from ..get_mypy_exceptions import get_mypy_exceptions
+from ..protocol_dict import ProtocolDict
+from ..protocol_markers.marker.type_marker import TypeMarker
+from ..protocol_markers.types_marker_factory import (
     create_type_marker,
 )
-from src.interfacer.to_camelcase import to_camelcase
-from src.interfacer.transform.class_extractor import ClassExtractor
-from src.interfacer.transform.class_extractor import GlobalClassExtractor
-from src.interfacer.transform.import_visiting_transformer import (
+from ..to_camelcase import to_camelcase
+from ..transform.class_extractor import ClassExtractor
+from ..transform.class_extractor import GlobalClassExtractor
+from ..transform.import_visiting_transformer import (
     ImportVisitingTransformer,
 )
-from src.interfacer.transform.prototype_applier import PrototypeApplier
+from ..transform.prototype_applier import PrototypeApplier
 
 
 class TypeAddTransformer(ImportVisitingTransformer):

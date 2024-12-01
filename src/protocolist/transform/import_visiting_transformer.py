@@ -6,9 +6,9 @@ import libcst
 from libcst import Import
 from libcst import ImportFrom
 
-from src.interfacer.config import Config
-from src.interfacer.protocol_markers.marker import TypeMarker
-from src.interfacer.protocol_markers.types_marker_factory import (
+from ..config import Config
+from ..protocol_markers.marker import TypeMarker
+from ..protocol_markers.types_marker_factory import (
     create_type_marker,
 )
 

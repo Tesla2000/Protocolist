@@ -7,7 +7,6 @@ from itertools import filterfalse
 from operator import itemgetter
 from pathlib import Path
 
-import libcst
 import libcst as cst
 from mypy.memprofile import defaultdict
 
