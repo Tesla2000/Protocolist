@@ -5,9 +5,11 @@ from pathlib import Path
 
 from .consts import abc_classes
 from .consts import builtin_types
+from .consts import protocol_replacement_name
 from .fields_methods_extractor import FieldsAndMethodsExtractor
 from .import2path import import2path
 from .transform.class_extractor import GlobalClassExtractor
+from .utils.is_import_valid import is_import_valid
 
 
 def extract_methods_and_fields(code: str) -> tuple[set[str], set[str]]:
@@ -27,7 +29,7 @@ def extract_method_names_and_field_names(
         for method in methods
     ).difference(["__init__"])
     field_names = set(re.findall(r"(\w+)\:", field)[0] for field in fields)
-    bases = set(bases).difference(["Protocol"])
+    bases = set(bases).difference([protocol_replacement_name])
     classes = class_extractor.get(file_path).classes
     imports = class_extractor.get(file_path).imports
     _builtin_types = {item[0]: item for item in builtin_types}
@@ -73,7 +75,7 @@ def extract_method_names_and_field_names(
         )
         for base in bases
         for import_path, imported_names in imports.items()
-        if base in imported_names or "*" in imported_names
+        if is_import_valid(base, import_path, imported_names)
     )
     return method_names, field_names
 
@@ -102,6 +104,6 @@ def _extract_from_import(
             field_names.update(methods_and_fields[1]),
         )
         for import_path, imported_names in imports.items()
-        if imported_name in imported_names or "*" in imported_names
+        if is_import_valid(imported_name, import_path, imported_names)
     )
     return method_names, field_names

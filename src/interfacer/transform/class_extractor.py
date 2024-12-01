@@ -9,6 +9,7 @@ from libcst import ClassDef
 from libcst import Module
 
 from src.interfacer.config import Config
+from src.interfacer.consts import protocol_replacement_name
 from src.interfacer.extract_bases import extract_bases
 from src.interfacer.protocol_markers.marker import TypeMarker
 from src.interfacer.protocol_markers.types_marker_factory import (
@@ -40,7 +41,7 @@ class ClassExtractor(ImportVisitingTransformer):
             .lstrip()
             .replace(self.config.tab_length * " ", "\t")
         )
-        if any(map("Protocol".__eq__, extract_bases(node))):
+        if any(map(protocol_replacement_name.__eq__, extract_bases(node))):
             self.protocols[class_name] = class_code
         if (class_name, class_code) in self._internal_classes.items():
             return super().visit_ClassDef(node)

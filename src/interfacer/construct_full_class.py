@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import OrderedDict
-from collections.abc import Iterable
+from collections.abc import Container
 from itertools import chain
 from itertools import takewhile
 from typing import Optional
@@ -16,13 +16,14 @@ from numpy.random.mtrand import Sequence
 from src.interfacer.extract_bases import extract_bases
 from src.interfacer.import2path import import2path
 from src.interfacer.transform.class_extractor import GlobalClassExtractor
+from src.interfacer.utils.is_import_valid import is_import_valid
 
 
 def construct_full_class(
     class_def: ClassDef,
     class_extractor: GlobalClassExtractor,
     previous_classes: OrderedDict[str, "ClassDef"],
-    imports: dict[str, Iterable[str]],
+    imports: dict[str, Container[str]],
 ) -> ClassDef:
     bases = tuple(extract_bases(class_def))
 
@@ -40,7 +41,7 @@ def construct_full_class(
                 imports,
             )
         for import_string, imported_names in imports.items():
-            if base_name in imported_names or "*" in imported_names:
+            if is_import_valid(base_name, import_string, imported_names):
                 extraction_path = import2path(import_string)
                 if not extraction_path.exists():
                     return  # base not found

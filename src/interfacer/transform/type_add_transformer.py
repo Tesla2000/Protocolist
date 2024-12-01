@@ -5,6 +5,7 @@ from collections import OrderedDict
 from collections.abc import Iterable
 from itertools import chain
 from itertools import filterfalse
+from pathlib import Path
 from typing import Optional
 from typing import Union
 
@@ -29,6 +30,7 @@ from src.interfacer.consts import dunder_methods
 from src.interfacer.consts import exception2method
 from src.interfacer.consts import hint_translations
 from src.interfacer.consts import import_statement
+from src.interfacer.consts import protocol_replacement_name
 from src.interfacer.consts import types_parametrized_with_one_parameter
 from src.interfacer.consts import types_parametrized_with_two_parameters
 from src.interfacer.get_external_library_classes import ExternalLibElement
@@ -60,12 +62,14 @@ class TypeAddTransformer(ImportVisitingTransformer):
         protocol: ProtocolDict,
         types_marker: TypeMarker,
         class_extractor: GlobalClassExtractor,
+        filepath: Path,
     ):
         super().__init__(config, types_marker)
         self._previous_classes = OrderedDict()
         self.class_extractor = class_extractor
         self.config = config
         self.protocols = protocol
+        self.filepath = filepath
         self.temp_python_file = self.config.mypy_folder / "_temp.py"
         self.annotations = {}
         self.imports = set()
@@ -93,7 +97,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         else:
             updated_function_code = Module([updated_node]).code
         self.updated_code = import_statement + updated_function_code
-        while True:
+        for _ in range(20):
             protocol_items = tuple(self.protocols.items())
             for protocol in self.protocols.get_protocols():
                 literal = f"Literal['{protocol}']"
@@ -117,6 +121,8 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     self.annotations[to_camelcase(protocol)] = interface
             if protocol_items == tuple(self.protocols.items()):
                 break
+        else:
+            raise ValueError
         self.save_protocols()
         return self._update_parameters(updated_node)
 
@@ -486,7 +492,8 @@ class TypeAddTransformer(ImportVisitingTransformer):
             return f"{attr_field}: Literal['{literal_name}']"
 
         return (
-            f"class {to_camelcase(class_name)}(Protocol):\n\t"
+            f"class {to_camelcase(class_name)}"
+            f"({protocol_replacement_name}):\n\t"
             + "\n\t".join(map(create_field, attr_fields))
         )
 

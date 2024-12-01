@@ -3,10 +3,11 @@ from __future__ import annotations
 from functools import reduce
 from operator import itemgetter
 
+protocol_replacement_name = "ProtocolistProtocol"
 import_statement = (
     "import collections.abc\nfrom collections.abc import *\n"
     "from typing import *\nfrom typing import Literal, "
-    "Protocol, Union, Any, runtime_checkable\n"
+    f"Protocol as {protocol_replacement_name}, Union, Any, runtime_checkable\n"
 )
 ANY = "Any"
 exception2method = dict(

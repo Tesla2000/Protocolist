@@ -6,16 +6,15 @@ from itertools import chain
 from itertools import filterfalse
 from operator import itemgetter
 from pathlib import Path
-from typing import Optional
 
 import libcst
 import libcst as cst
-from libcst import Name
 from mypy.memprofile import defaultdict
 
 from ..config import Config
 from ..consts import builtin_types
 from ..protocol_markers.types_marker_factory import create_type_marker
+from ..utils.split_annotations import split_annotations
 from .class_extractor import ClassExtractor
 from .class_extractor import GlobalClassExtractor
 from .type_add_transformer import TypeAddTransformer
@@ -30,7 +29,11 @@ def create_protocols(
     code = filepath.read_text()
     module = cst.parse_module(code)
     transformer = TypeAddTransformer(
-        config, protocols, create_type_marker(config), class_extractor
+        config,
+        protocols,
+        create_type_marker(config),
+        class_extractor,
+        filepath,
     )
     new_code = module.visit(transformer).code
     assert len(transformer.imports) == len(
@@ -46,7 +49,7 @@ def create_protocols(
             tuple(map(itemgetter(0), builtin_types)).__contains__,
             chain.from_iterable(
                 map(
-                    _split_annotations,
+                    split_annotations,
                     transformer.annotations.values(),
                 )
             ),
@@ -82,6 +85,7 @@ def create_protocols(
                 set(
                     f"from {module_name} import {item_name}\n"
                     for item_name, module_name in external_imports.items()
+                    if module_name not in ("typing", "collections.abc")
                 )
             )
         )
@@ -92,19 +96,3 @@ def create_protocols(
         print(f"File {filepath} was modified")
         return 1
     return 0
-
-
-def _split_annotations(annotation: str) -> list[str]:
-    names_getter = _NamesGetter()
-    libcst.parse_expression(annotation).visit(names_getter)
-    return names_getter.names
-
-
-class _NamesGetter(libcst.CSTTransformer):
-    def __init__(self):
-        super().__init__()
-        self.names = []
-
-    def visit_Name(self, node: "Name") -> Optional[bool]:
-        self.names.append(node.value)
-        return super().visit_Name(node)
