@@ -7,6 +7,7 @@ from more_itertools import map_except
 
 
 def extract_bases(node: ClassDef) -> Iterable[str]:
-    return map_except(
-        lambda base: base.value.value, node.bases, AttributeError
+    return filter(
+        str.__instancecheck__,
+        map_except(lambda base: base.value.value, node.bases, AttributeError),
     )

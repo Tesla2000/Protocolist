@@ -118,7 +118,9 @@ def _merge_parameters(
     name = random.choice(
         tuple(name for name in names if name.startswith("arg")) or names
     )
-    valid_types = tuple(set(filter(None, map(annotation2string, annotations))))
+    valid_types = sorted(
+        tuple(set(filter(None, map(annotation2string, annotations))))
+    )
     return (
         name,
         [
