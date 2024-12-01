@@ -16,6 +16,7 @@ from pydantic_core import PydanticUndefined
 from .custom_argument_parser import CustomArgumentParser
 from .presentation_option.presentation_option import PresentationOption
 from .protocol_markers.mark_options import MarkOption
+from .utils.filepath2import_path import filepath2import_path
 
 load_dotenv()
 
@@ -50,10 +51,8 @@ class Config(BaseModel):
         )
 
     @property
-    def interface_import_path(self):
-        return ".".join(
-            self.interfaces_path.relative_to(os.getcwd()).with_suffix("").parts
-        )
+    def interface_import_path(self) -> str:
+        return filepath2import_path(self.interfaces_path)
 
 
 def parse_arguments(config_class: Type[Config]):

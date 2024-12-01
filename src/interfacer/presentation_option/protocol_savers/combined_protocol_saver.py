@@ -16,6 +16,7 @@ from more_itertools.more import map_reduce
 from more_itertools.more import unzip
 
 from ...annotation2string import annotation2string
+from ...consts import protocol_replacement_name
 from ...extract_methods_and_fields import extract_methods_and_fields
 from ...protocol_markers.types_marker_factory import create_type_marker
 from ...transform.class_extractor import ClassExtractor
@@ -35,7 +36,7 @@ class CombinedProtocolSaver(ProtocolSaver):
         classes = class_extractor.extract_classes(code)
         grouped_classes = map_reduce(
             classes.items(),
-            lambda item: re.findall(r"\D+", item[0])[0],
+            lambda item: re.sub(r"\d+", "", item[0]),
             lambda item: item[1],
         )
         for class_name, instances in grouped_classes.items():
@@ -45,7 +46,8 @@ class CombinedProtocolSaver(ProtocolSaver):
             )
             methods = _merge_methods(methods)
             new_code += (
-                f"\n@runtime_checkable\nclass {class_name}(Protocol):"
+                f"\n@runtime_checkable\nclass {class_name}"
+                f"({protocol_replacement_name}):"
                 f"\n\t{'\n\t'.join(fields)}\n\t"
                 f"{'\n\t'.join(
                     f"{method.rstrip('.')}\n\t\t..." for method in methods)}"

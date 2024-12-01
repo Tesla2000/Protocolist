@@ -4,6 +4,7 @@ import re
 
 from more_itertools.more import map_reduce
 
+from ...consts import protocol_replacement_name
 from ...protocol_markers.types_marker_factory import create_type_marker
 from ...transform.class_extractor import ClassExtractor
 from ..presentation_option import PresentationOption
@@ -32,7 +33,8 @@ class BothProtocolSaver(ProtocolSaver):
         for class_name, instances in grouped_classes.items():
             new_protocol = (
                 f"@runtime_checkable\nclass {class_name}("
-                f"{', '.join(instances)}, Protocol):\n    pass"
+                f"{', '.join(instances)}, "
+                f"{protocol_replacement_name}):\n\tpass"
             )
             new_code += "\n" + new_protocol
         self.config.interfaces_path.write_text(new_code)
