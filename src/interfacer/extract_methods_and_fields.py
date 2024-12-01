@@ -11,14 +11,8 @@ from .transform.class_extractor import GlobalClassExtractor
 
 
 def extract_methods_and_fields(code: str) -> tuple[set[str], set[str]]:
-    return set(
-        re.findall("\t" r"def [^\(]+\([^\)]+\)[^:]*:", code)
-    ).difference(["__init__"]), set(
-        filter(
-            lambda line: re.findall(r"^" "\t" r"\w+\:", line),
-            code.splitlines(),
-        )
-    )
+    methods, fields = FieldsAndMethodsExtractor.get_methods_and_fields(code)
+    return set(methods).difference(["__init__"]), set(fields)
 
 
 def extract_method_names_and_field_names(
