@@ -1415,3 +1415,5 @@ types_parametrized_with_two_parameters = [
     "Callable",
     "Mapping",
 ]
+
+hint_translations = {"list[Never]": "list", "filter[Any]": "filter"}
