@@ -27,6 +27,7 @@ from src.interfacer.consts import builtin_types
 from src.interfacer.consts import dunder_method_params
 from src.interfacer.consts import dunder_methods
 from src.interfacer.consts import exception2method
+from src.interfacer.consts import hint_translations
 from src.interfacer.consts import import_statement
 from src.interfacer.consts import types_parametrized_with_one_parameter
 from src.interfacer.consts import types_parametrized_with_two_parameters
@@ -276,7 +277,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         incompatible_type_pattern = rf"Argument \S+ to \"{function_name}\" of \"[^\"]+\" has incompatible type \"([^\"]+)\"; expected \"None\""  # noqa: E501
         incompatible_type_search = re.compile(incompatible_type_pattern).search
         types = tuple(
-            {"list[Never]": "list"}.get(type, type)
+            hint_translations.get(type, type)
             for type in set(
                 incompatible_type_exception.group(1)
                 for incompatible_type_exception in map(
