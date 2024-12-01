@@ -239,7 +239,10 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     _class_code, f"'''\n{_class_code}\n'''", 1
                 )
                 commented_classes += 1
-            self._add_args(class_code, class_name)
+            class_code = self._add_args(class_code, class_name)
+            exceptions = get_mypy_exceptions(
+                self.temp_python_file, self.updated_code
+            )
             unexpected_kwargs_pattern = (
                 r"Unexpected keyword argument "
                 r"\"([^\"]+)\" for \"([^\"]+)\""
@@ -553,7 +556,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
             return tuple(combined_elements)[0]
         return f"Union[{', '.join(combined_elements)}]"
 
-    def _add_args(self, class_code: str, class_name: str):
+    def _add_args(self, class_code: str, class_name: str) -> str:
         exceptions = get_mypy_exceptions(
             self.temp_python_file, self.updated_code
         )
@@ -565,13 +568,14 @@ class TypeAddTransformer(ImportVisitingTransformer):
         def get_signature(match: re.Match) -> Optional[str]:
             return self._get_function_signature(match.group(1), class_code)
 
+        new_class_code = class_code
         for _ in range(100):
 
             many_args_exceptions = list(
                 map(search, filter(search, exceptions))
             )
             if not any(filter(None, map(get_signature, many_args_exceptions))):
-                return
+                return new_class_code
             for exception in many_args_exceptions:
                 function_name = exception.group(1)
                 function_signature = self._get_function_signature(
@@ -604,7 +608,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 if any(
                     map(re.compile(to_little_args_pattern).search, exceptions)
                 ):
-                    return
+                    return new_class_code
                 hint = self._handle_incompatible_type(
                     function_name, exceptions
                 )
