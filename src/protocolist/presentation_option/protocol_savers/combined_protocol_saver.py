@@ -53,13 +53,13 @@ class CombinedProtocolSaver(ProtocolSaver):
                     f"{method.rstrip('.')}\n\t\t..." for method in methods)}"
             )
         partial2composite = {
-            class_name: re.findall(r"\D+", class_name)[0]
+            class_name: re.sub(r"\d+", "", class_name)
             for class_name in classes.keys()
         }
         self.replace_dictionary = {
             **partial2composite,
             **{
-                key: re.findall(r"\D+", value)[0]
+                key: re.sub(r"\d+", "", value)
                 for key, value in self.replace_dictionary.items()
             },
         }

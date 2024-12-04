@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 import string
+from itertools import chain
 from itertools import product
 from pathlib import Path
 
@@ -20,11 +21,20 @@ def add_inheritance(
 ):
     file_content = file_path.read_text()
     interface_content = config.interfaces_path.read_text()
-    interface_imports = interface_content.partition("class ")[0]
+    interface_imports = interface_content.partition("@")[0]
     file_class_extractor = InheritanceRemovingClassExtractor(
         config, create_type_marker(config)
     )
     file_classes = file_class_extractor.extract_classes(file_content)
+    file_imports = file_class_extractor.type_marker.imports
+    imported_names = set(
+        chain.from_iterable(
+            value
+            for key, value in file_imports.items()
+            if key != config.interface_import_path
+        )
+    )
+    all_names = imported_names.union(file_classes.keys())
     interface_classes = class_extractor.get(config.interfaces_path).classes
     inheritances = []
     file_content = file_class_extractor.updated_module.code.replace(
@@ -58,6 +68,7 @@ def add_inheritance(
             return False
         return not interface_field_names.difference(class_field_names)
 
+    interface2name = {}
     for class_name, interface_name in filter(
         _check_fields_and_methods,
         product(
@@ -67,6 +78,15 @@ def add_inheritance(
             ),
         ),
     ):
+        updated_name = interface_name
+        while (
+            updated_name in all_names and interface_name not in interface2name
+        ):
+            updated_name = updated_name + "_"
+        all_names.add(updated_name)
+        interface2name[interface_name] = interface2name.get(
+            interface_name, updated_name
+        )
         class_code = classes[class_name]
         class_inheritances = re.findall(
             rf"class {class_name}([^\)^:]*)", class_code
@@ -83,7 +103,9 @@ def add_inheritance(
             )
         else:
             new_class_code = class_code.replace(
-                class_header, class_header + f"({interface_name})", 1
+                class_header,
+                class_header + f"({interface2name[interface_name]})",
+                1,
             )
             updated_file_content = file_content.replace(
                 class_code, new_class_code, 1
@@ -98,7 +120,7 @@ def add_inheritance(
             )
         }
         inheritance_code = re.sub(
-            r"from interfaces\.interfaces import \S+",
+            rf"from {config.interface_import_path} import \S+",
             "",
             f"{interface_imports}\n"
             f"{'\n'.join(applicable_interfaces.values())}\n"
@@ -146,7 +168,10 @@ def add_inheritance(
     file_content = (
         "".join(
             set(
-                f"from {config.interface_import_path} import {superclass}\n"
+                f"from {config.interface_import_path} import {superclass}"
+                + bool(interface2name[superclass] != superclass)
+                * f" as {interface2name[superclass]}"
+                + "\n"
                 for _, superclass in inheritances
             )
         )
