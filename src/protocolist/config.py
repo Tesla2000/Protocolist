@@ -31,7 +31,7 @@ class Config(BaseModel):
     allow_any: bool = False
     mark_option: MarkOption = MarkOption.ALL
     protocol_presentation: PresentationOption = (
-        PresentationOption.PARTIAL_PROTOCOLS
+        PresentationOption.COMBINED_PROTOCOLS
     )
     external_libraries: Optional[Iterable[str]] = tuple()
     excluded_libraries: Iterable[str] = tuple()
@@ -45,6 +45,9 @@ class Config(BaseModel):
             )
         )
         data["interfaces_path_origin"] = data["interfaces_path"].parent
+        data["interfaces_path_origin"].mkdir(exist_ok=True)
+        if not data["interfaces_path"].exists():
+            data["interfaces_path"].write_text("")
         super().__init__(**data)
         self.excluded_libraries = frozenset(self.excluded_libraries).union(
             {"networkx.utils.configs"}
