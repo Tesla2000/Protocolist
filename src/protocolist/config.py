@@ -41,7 +41,10 @@ class Config(BaseModel):
     def __init__(self, /, **data: Any):
         data["interfaces_path"] = Path(
             data.get(
-                "interfaces_path", os.getcwd() + "/interfaces/interfaces.py"
+                "interfaces_path",
+                Path(os.getcwd())
+                / data.get("interfaces_path_origin", "interfaces")
+                / "interfaces.py",
             )
         )
         data["interfaces_path_origin"] = data["interfaces_path"].parent

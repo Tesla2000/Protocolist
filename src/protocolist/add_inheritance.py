@@ -95,7 +95,9 @@ def add_inheritance(
         if class_inheritances:
             new_class_code = class_code.replace(
                 class_header,
-                class_header.rstrip(", ") + ", " + interface_name,
+                class_header.rstrip(", ")
+                + ", "
+                + interface2name[interface_name],
                 1,
             )
             updated_file_content = file_content.replace(

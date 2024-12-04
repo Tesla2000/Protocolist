@@ -30,7 +30,6 @@ def _main(config: Config) -> int:
     paths = tuple(
         filter(lambda path: path.suffix == ".py", map(Path, config.pos_args))
     )
-    # fail = apply_pytype(config)
     global_class_extractor = GlobalClassExtractor(config)
     classes = ClassExtractor(
         config, create_type_marker(config)
