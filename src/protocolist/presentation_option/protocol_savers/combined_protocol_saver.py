@@ -21,6 +21,7 @@ from ...extract_methods_and_fields import extract_methods_and_fields
 from ...protocol_markers.types_marker_factory import create_type_marker
 from ...transform.class_extractor import ClassExtractor
 from ..presentation_option import PresentationOption
+from ..replace_partial_with_combined import ReplaceNames
 from .protocol_saver import ProtocolSaver
 
 
@@ -63,8 +64,11 @@ class CombinedProtocolSaver(ProtocolSaver):
                 for key, value in self.replace_dictionary.items()
             },
         }
-        for partial, composite in partial2composite.items():
-            new_code = new_code.replace(partial, composite)
+        replace_dict = {
+            key: f'"{value}"' for key, value in self.replace_dictionary.items()
+        }
+        visitor = ReplaceNames(self.config, replace_dict)
+        new_code = libcst.parse_module(new_code).visit(visitor).code
         self.config.interfaces_path.write_text(new_code)
 
 
@@ -119,7 +123,7 @@ def _merge_parameters(
         tuple(name for name in names if name.startswith("arg")) or names
     )
     valid_types = sorted(
-        tuple(set(filter(None, map(annotation2string, annotations))))
+        set(filter(None, map(annotation2string, annotations)))
     )
     return (
         name,
