@@ -82,7 +82,7 @@ def add_inheritance(
         while (
             updated_name in all_names and interface_name not in interface2name
         ):
-            updated_name = updated_name + "_"
+            updated_name += "_"
         all_names.add(updated_name)
         interface2name[interface_name] = interface2name.get(
             interface_name, updated_name
