@@ -4,10 +4,16 @@ import re
 import sys
 from abc import ABC
 from abc import abstractmethod
+from importlib import import_module
 from operator import itemgetter
 from pathlib import Path
+from typing import Optional
 
 import libcst
+from libcst import ClassDef
+from libcst import CSTTransformer
+from libcst import ImportFrom
+from libcst import Module
 from more_itertools.more import map_reduce
 
 from ...config import Config
@@ -85,12 +91,39 @@ class ProtocolSaver(ABC):
         for filepath in filter(
             lambda path: path.suffix == ".py", map(Path, self.config.pos_args)
         ):
+            module = libcst.parse_module(filepath.read_text())
+            names_getter = _LocalNamesGetter(self.config)
+            module.visit(names_getter)
+            imports_as = {}
+            for key, value in self.replace_dictionary.items():
+                while value in names_getter.local_names:
+                    value += "_"
+                imports_as[key] = value
+
             filepath.write_text(
-                libcst.parse_module(filepath.read_text())
-                .visit(
+                module.visit(
                     ReplaceImportsAndNames(
-                        self.config, self.replace_dictionary
+                        self.config, self.replace_dictionary, imports_as
                     )
-                )
-                .code
+                ).code
             )
+
+
+class _LocalNamesGetter(CSTTransformer):
+    def __init__(self, config: Config):
+        super().__init__()
+        self.config = config
+        self.local_names = set()
+
+    def visit_ImportFrom(self, node: "ImportFrom") -> Optional[bool]:
+        _, import_path, _, *imported_names = Module([node]).code.split()
+        if import_path == self.config.interface_import_path:
+            return super().visit_ImportFrom(node)
+        self.local_names.update(imported_names)
+        if "*" in imported_names:
+            self.local_names.update(dir(import_module(import_path)))
+        return super().visit_ImportFrom(node)
+
+    def visit_ClassDef(self, node: "ClassDef") -> Optional[bool]:
+        self.local_names.add(node.name.value)
+        return super().visit_ClassDef(node)
