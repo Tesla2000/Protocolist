@@ -19,11 +19,10 @@ class ReplaceNames(Transformer):
     def leave_Name(
         self, original_node: "Name", updated_node: "Name"
     ) -> "Name":
-        return updated_node.with_changes(
-            value=self.replace_dictionary.get(
-                updated_node.value, updated_node.value
-            )
-        )
+        value = updated_node.value
+        if value == self.replace_dictionary.get(value, value):
+            return updated_node
+        return libcst.parse_expression(self.replace_dictionary[value])
 
     def leave_Subscript(
         self, original_node: "Subscript", updated_node: "Subscript"
@@ -55,8 +54,8 @@ class ReplaceImportsAndNames(ReplaceNames):
         self, original_node: "ImportFrom", updated_node: "ImportFrom"
     ) -> "ImportFrom":
         code = Module([original_node]).code
-        if code.split()[1] == self.config.interface_import_path:
-            from_, import_path, import_, element = code.split()
+        from_, import_path, import_, element, *_ = code.split()
+        if import_path == self.config.interface_import_path and not _:
             as_name = self.replace_dictionary.get(element, element)
             original_name = self.original_names.get(element, element)
             return libcst.parse_statement(
