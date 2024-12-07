@@ -12,6 +12,7 @@ from .config import parse_arguments
 from .presentation_option.protocol_saver_factory import create_protocol_saver
 from .protocol_dict import ProtocolDict
 from .protocol_markers.types_marker_factory import create_type_marker
+from .remove_star_imports import remove_star_imports
 from .transaction import transation
 from .transform.class_extractor import ClassExtractor
 from .transform.class_extractor import GlobalClassExtractor
@@ -60,6 +61,7 @@ def _main(config: Config) -> int:
         fail |= add_inheritance(
             filepath, config=config, class_extractor=global_class_extractor
         )
+    remove_star_imports(config)
     fail |= os.system(
         f"reorder-python-imports {' '.join(config.pos_args)} "
         f"{config.interfaces_path.absolute()} --py39-plus"

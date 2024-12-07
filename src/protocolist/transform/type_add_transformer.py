@@ -104,15 +104,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 literal = f"Literal['{protocol}']"
                 if literal not in self.updated_code:
                     continue
-                exceptions = get_mypy_exceptions(
-                    self.temp_python_file,
-                    self.new_protocols_code(
-                        self.updated_code.replace(
-                            f"Literal['{protocol}']", "None"
-                        )
-                    ),
-                )
-                interface_ = self._get_missing_interface(protocol, exceptions)
+                interface_ = self._get_missing_interface(protocol)
                 interface = self._combine_saved_and_new_interface(
                     interface_, protocol
                 )
@@ -312,9 +304,13 @@ class TypeAddTransformer(ImportVisitingTransformer):
             return types[0]
         return f"Union[{', '.join(types)}]"
 
-    def _get_missing_interface(
-        self, class_name: str, exceptions: Iterable[str]
-    ) -> str:
+    def _get_missing_interface(self, class_name: str) -> str:
+        exceptions = get_mypy_exceptions(
+            self.temp_python_file,
+            self.new_protocols_code(
+                self.updated_code.replace(f"Literal['{class_name}']", "None")
+            ),
+        )
         exceptions = frozenset(exceptions)
         if not exceptions:
             return ANY
@@ -372,6 +368,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     exception,
                 )
                 or re.search(" has incompatible type ", exception)
+                or re.search(r" Unsupported operand types for ", exception)
                 for exception in new_exceptions
             )
 
@@ -394,44 +391,45 @@ class TypeAddTransformer(ImportVisitingTransformer):
 
         def add_subtypes(interface: str) -> str:
             if interface in types_parametrized_with_one_parameter:
-                exceptions = get_mypy_exceptions(
-                    self.temp_python_file,
-                    self.new_protocols_code(
-                        self.updated_code.replace(
-                            f"Literal['{class_name}']", interface + "[None]"
-                        )
-                    ),
+                subscript = class_name + "Subscript"
+                new = f"{interface}[Literal['{subscript}']]"
+                self.updated_code = self.updated_code.replace(
+                    f"Literal['{class_name}']",
+                    new,
+                    1,
                 )
-                subscription = self._get_missing_interface(
-                    class_name + "Subscript", exceptions
+                subscription = self._get_missing_interface(subscript)
+                self.updated_code = self.updated_code.replace(
+                    new,
+                    f"Literal['{class_name}']",
+                    1,
                 )
                 if subscription != ANY or self.config.allow_any:
                     return interface + f"[{subscription}]"
                 return interface
             if interface in types_parametrized_with_two_parameters:
-                exceptions = get_mypy_exceptions(
-                    self.temp_python_file,
-                    self.new_protocols_code(
-                        self.updated_code.replace(
-                            f"Literal['{class_name}']",
-                            interface + "[None, Any]",
-                        )
-                    ),
+                subscript = class_name + "FirstSubscript"
+                new = (
+                    f"{interface}[Literal["
+                    f"'{class_name + "FirstSubscript"}'], Any]"
                 )
-                subscription1 = self._get_missing_interface(
-                    class_name + "FirstSubscript", exceptions
+                self.updated_code = self.updated_code.replace(
+                    f"Literal['{class_name}']",
+                    new,
+                    1,
                 )
-                exceptions = get_mypy_exceptions(
-                    self.temp_python_file,
-                    self.new_protocols_code(
-                        self.updated_code.replace(
-                            f"Literal['{class_name}']",
-                            interface + "[Any, None]",
-                        )
-                    ),
+                subscription1 = self._get_missing_interface(subscript)
+                subscript = class_name + "SecondSubscript"
+                self.updated_code = self.updated_code.replace(
+                    new,
+                    f"{interface}[{subscription1}, Literal['{subscript}']]",
+                    1,
                 )
-                subscription2 = self._get_missing_interface(
-                    class_name + "SecondSubscript", exceptions
+                subscription2 = self._get_missing_interface(subscript)
+                self.updated_code = self.updated_code.replace(
+                    f"{interface}[{subscription1}, Literal['{subscript}']]",
+                    f"Literal['{class_name}']",
+                    1,
                 )
                 if (
                     subscription1 != ANY
@@ -442,8 +440,6 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 return interface
             return interface
 
-        valid_iterfaces = tuple(filter(is_interface_valid, valid_iterfaces))
-        valid_iterfaces = tuple(map(add_subtypes, valid_iterfaces))
         valid_external_lib_entries = tuple(
             filter(is_external_lib_valid, external_lib_entries)
         )
@@ -453,6 +449,8 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 for entry in valid_external_lib_entries
             )
         )
+        valid_iterfaces = tuple(filter(is_interface_valid, valid_iterfaces))
+        valid_iterfaces = tuple(map(add_subtypes, valid_iterfaces))
         protocol = self._create_protocol(class_name, methods)
         rest = self.updated_code.partition(import_statement)[-1]
         self.updated_code = "\n".join(

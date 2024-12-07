@@ -1,24 +1,13 @@
 from __future__ import annotations
 
-import collections
-import typing
 from functools import reduce
 from operator import itemgetter
 
 protocol_replacement_name = "ProtocolistProtocol"
-_collection_elements = frozenset(
-    filter(lambda name: not name.startswith("_"), dir(collections.abc))
-)
-_typing_elements = frozenset(
-    filter(lambda name: not name.startswith("_"), dir(typing))
-).difference(_collection_elements)
 import_statement = (
-    "import collections.abc\n"
-    f"{'\n'.join(map('from typing import {}'.format, _typing_elements))}\n"
-    + "\n".join(
-        map("from collections.abc import {}".format, _collection_elements)
-    )
-    + "\nfrom typing import Literal, "
+    "import collections.abc\nfrom typing import *"
+    "\nfrom collections.abc import *"
+    "\nfrom typing import Literal, "
     f"Protocol as {protocol_replacement_name}, Union, Any, runtime_checkable\n"
 )
 ANY = "Any"
