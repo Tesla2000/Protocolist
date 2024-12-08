@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from tests.file_sets.set_1.before_update.protocols import Message1
 
-def foo(message) -> None:
+
+def foo(message: Message1) -> None:
     message.some_method("str", "int", string="string")
     message.some_method("str", 5, string=[])
     dictionary = {
