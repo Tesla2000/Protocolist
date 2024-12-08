@@ -23,10 +23,10 @@ def main() -> int:
     args = parse_arguments(Config)
     config = create_config_with_args(Config, args)
     with transation(config.pos_args, config.interfaces_path):
-        return _main(config)
+        return protocol(config)
 
 
-def _main(config: Config) -> int:
+def protocol(config: Config) -> int:
     fail = 0
     paths = tuple(
         filter(lambda path: path.suffix == ".py", map(Path, config.pos_args))
