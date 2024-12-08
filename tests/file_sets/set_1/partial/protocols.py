@@ -28,8 +28,6 @@ class Role1(ProtocolistProtocol):
 		...
 @runtime_checkable
 class Content1(ProtocolistProtocol):
-	def __setitem__(self, key, value):
-		...
 	content: Union[Collection[Union[Message2FirstSubscript, str]], Content2, memoryview]
 	string: Union[Message2FirstSubscript, str]
 @runtime_checkable

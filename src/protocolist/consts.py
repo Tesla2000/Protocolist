@@ -14,11 +14,11 @@ ANY = "Any"
 exception2method = dict(
     zip(
         (
-            r"Unsupported target for indexed assignment \(\"([^\"]+)\"\)\s+\[index\]",  # noqa: E501
-            r"Value of type \"([^\"]+)\" is not indexable",
-            r"has incompatible type \"([^\"]+)\"; expected \"Sized\"",
-            r"No overload variant of \"iter\" matches argument type \"([^\"]+)\"",  # noqa: E501
-            r"\"([^\"]+)\" has no attribute \"__iter__\"",
+            r"Unsupported target for indexed assignment \(\"None\"\)\s+\[index\]",  # noqa: E501
+            r"Value of type \"None\" is not indexable",
+            r"has incompatible type \"None\"; expected \"Sized\"",
+            r"No overload variant of \"iter\" matches argument type \"None\"",  # noqa: E501
+            r"\"None\" has no attribute \"__iter__\"",
             r'No overload variant of "next" matches argument type "(?!Literal\[)[^"]+"',  # noqa: E501
         ),
         (
