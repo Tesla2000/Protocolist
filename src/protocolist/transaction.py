@@ -12,6 +12,8 @@ def transation(pos_args: Iterable[str], interface_path: Path):
     try:
         yield
     except BaseException:
+        print("Reverting changes please wait until process is done...")
         for path, content in zip(paths, contents):
             path.write_text(content)
+        print("Changes reverted")
         raise

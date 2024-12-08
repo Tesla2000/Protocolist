@@ -514,7 +514,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         return (
             f"class {to_camelcase(class_name)}"
             f"({protocol_replacement_name}):\n\t"
-            + "\n\t".join(map(create_field, attr_fields))
+            + "\n\t".join(map(create_field, sorted(attr_fields)))
         )
 
     def leave_Param(

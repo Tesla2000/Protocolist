@@ -40,12 +40,15 @@ class CombinedProtocolSaver(ProtocolSaver):
             lambda item: re.sub(r"\d+", "", item[0]),
             lambda item: item[1],
         )
-        for class_name, instances in grouped_classes.items():
+        for class_name, instances in sorted(
+            grouped_classes.items(), key=lambda item: item[0]
+        ):
             methods, fields = tuple(
                 reduce(set.union, stream)
                 for stream in unzip(map(extract_methods_and_fields, instances))
             )
-            methods = _merge_methods(methods)
+            methods = sorted(_merge_methods(methods))
+            fields = sorted(_merge_fields(fields))
             new_code += (
                 f"\n@runtime_checkable\nclass {class_name}"
                 f"({protocol_replacement_name}):"
@@ -70,6 +73,22 @@ class CombinedProtocolSaver(ProtocolSaver):
         visitor = ReplaceNames(self.config, replace_dict)
         new_code = libcst.parse_module(new_code).visit(visitor).code
         self.config.interfaces_path.write_text(new_code)
+
+
+def _merge_fields(fields: Iterable[str]) -> Sequence[str]:
+    divided_fields = map_reduce(
+        fields,
+        lambda value: value.split(":")[0],
+        lambda value: value.partition(":")[-1].strip(),
+    )
+    return tuple(map(_combine_fields, divided_fields.items()))
+
+
+def _combine_fields(item: tuple[str, Sequence[str]]) -> str:
+    name, versions = item
+    if len(versions) > 1:
+        return f"{name}: Union[{', '.join(versions)}]"
+    return f"{name}: {versions[0]}"
 
 
 def _merge_methods(methods: Iterable[str]) -> Sequence[str]:

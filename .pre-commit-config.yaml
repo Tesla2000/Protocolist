@@ -22,10 +22,11 @@ repos:
     rev: '7.1.1'
     hooks:
       - id: flake8
-        args: [ "--ignore=E203,W503" ]
+        args: [ "--ignore=E203,W503,E704" ]
   - repo: https://github.com/Tesla2000/AutodocRemote
     rev: '0.2.2'
     hooks:
       - id: autodocremote
         stages: [push]
 default_stages: [commit]
+exclude: "^tests/file_sets"
