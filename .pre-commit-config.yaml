@@ -29,4 +29,7 @@ repos:
       - id: autodocremote
         stages: [push]
 default_stages: [commit]
-exclude: "^tests/file_sets"
+exclude: |
+    (?x)(
+        ^tests/file_sets
+    )

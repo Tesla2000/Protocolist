@@ -6,31 +6,15 @@ from unittest import TestCase
 
 from protocolist.config import Config
 from protocolist.main import protocol
-from protocolist.presentation_option.presentation_option import (
-    PresentationOption,
-)
-from protocolist.protocol_markers.mark_options import MarkOption
+from protocolist.transform.class_extractor import ClassExtractor
 
 
-class TestCombined(TestCase):
+class Test(TestCase):
     def setUp(self):
+        self.protocol_file_name = "protocols.py"
         self.before = Path("tests/file_sets/set_1/before_update")
-        self.protocols_path = self.before / "protocols.py"
-
-    def test_combined(self):
-        after = Path("tests/file_sets/set_1/combined")
-        config = Config(
-            pos_args=tuple(
-                map(
-                    str,
-                    self.before.iterdir(),
-                )
-            ),
-            interfaces_path=str(self.protocols_path),
-            mark_option=MarkOption.ALL,
-            protocol_presentation=PresentationOption.COMBINED_PROTOCOLS,
-        )
-        self._test(after, config)
+        self.protocol_file_name = "protocols.py"
+        self.protocols_path = self.before / self.protocol_file_name
 
     def _test(self, after: Path, config: Config):
         before_update_files = tuple(
@@ -46,10 +30,20 @@ class TestCombined(TestCase):
                 tuple(
                     (filepath.name, content)
                     for filepath, content in after_update_files
+                    if filepath.name != self.protocols_path.name
                 ),
                 tuple(
                     (filepath.name, filepath.read_text())
                     for filepath in self.before.iterdir()
+                    if filepath != self.protocols_path
+                ),
+            )
+            self.assertEqual(
+                ClassExtractor(config).extract_protocols(
+                    self.protocols_path.read_text()
+                ),
+                ClassExtractor(config).extract_protocols(
+                    (after / self.protocol_file_name).read_text()
                 ),
             )
         finally:

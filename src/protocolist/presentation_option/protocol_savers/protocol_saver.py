@@ -4,6 +4,7 @@ import re
 import sys
 from abc import ABC
 from abc import abstractmethod
+from collections import OrderedDict
 from importlib import import_module
 from operator import itemgetter
 from pathlib import Path
@@ -56,7 +57,7 @@ class ProtocolSaver(ABC):
                     item[-1]
                 ),
             )
-            unique_classes = dict(
+            unique_classes = OrderedDict(
                 sorted(
                     items,
                     key=lambda item: int(
