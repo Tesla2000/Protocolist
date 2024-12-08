@@ -8,7 +8,7 @@ Protocolist uses:
  - libcst to extract and modify relevant code.
 
 Protocolist doesn't used LLMs making generation process confidential, deterministic, and possible offline. 
-
+Protocolist uses static type checking and doesn't run the code to create type hints.
 
 ## Setup
 ```shell
