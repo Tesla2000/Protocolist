@@ -23,6 +23,7 @@ load_dotenv()
 
 class Config(BaseModel):
     _root: Path = Path(__file__).parent
+    project_root: Path = Path(os.getcwd())
     pos_args: list[str] = Field(default_factory=list)
     mypy_folder: Path = _root / ".temp"
     config_file: Optional[Path] = None
@@ -58,7 +59,9 @@ class Config(BaseModel):
 
     @property
     def interface_import_path(self) -> str:
-        return filepath2import_path(self.interfaces_path)
+        return filepath2import_path(
+            self.interfaces_path, project_root=self.project_root
+        )
 
 
 def parse_arguments(config_class: Type[Config]):

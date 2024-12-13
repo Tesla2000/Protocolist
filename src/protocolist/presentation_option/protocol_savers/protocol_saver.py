@@ -1,11 +1,11 @@
 from __future__ import annotations
 
+import importlib.util
 import re
 import sys
 from abc import ABC
 from abc import abstractmethod
 from collections import OrderedDict
-from importlib import import_module
 from operator import itemgetter
 from pathlib import Path
 from typing import Optional
@@ -93,7 +93,7 @@ class ProtocolSaver(ABC):
             lambda path: path.suffix == ".py", map(Path, self.config.pos_args)
         ):
             module = libcst.parse_module(filepath.read_text())
-            names_getter = _LocalNamesGetter(self.config)
+            names_getter = _LocalNamesGetter(filepath, self.config)
             module.visit(names_getter)
             imports_as = {}
             for key, value in self.replace_dictionary.items():
@@ -111,8 +111,9 @@ class ProtocolSaver(ABC):
 
 
 class _LocalNamesGetter(CSTTransformer):
-    def __init__(self, config: Config):
+    def __init__(self, filepath: Path, config: Config):
         super().__init__()
+        self.filepath = filepath
         self.config = config
         self.local_names = set()
 
@@ -122,7 +123,10 @@ class _LocalNamesGetter(CSTTransformer):
             return super().visit_ImportFrom(node)
         self.local_names.update(imported_names)
         if "*" in imported_names:
-            self.local_names.update(dir(import_module(import_path)))
+            spec = importlib.util.spec_from_file_location(
+                import_path.rpartition(".")[-1], str(self.filepath)
+            )
+            self.local_names.update(dir(importlib.util.module_from_spec(spec)))
         return super().visit_ImportFrom(node)
 
     def visit_ClassDef(self, node: "ClassDef") -> Optional[bool]:

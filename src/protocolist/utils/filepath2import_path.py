@@ -4,7 +4,9 @@ import os
 from pathlib import Path
 
 
-def filepath2import_path(filepath: Path) -> str:
+def filepath2import_path(
+    filepath: Path, project_root: Path | str = os.getcwd()
+) -> str:
     return ".".join(
-        filepath.absolute().relative_to(os.getcwd()).with_suffix("").parts
+        filepath.absolute().relative_to(project_root).with_suffix("").parts
     )
