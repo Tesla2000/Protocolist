@@ -46,6 +46,27 @@ class Test(TestCase):
                     (after / self.protocol_file_name).read_text()
                 ),
             )
+            protocol(config)
+            self.assertEqual(
+                tuple(
+                    (filepath.name, content)
+                    for filepath, content in after_update_files
+                    if filepath.name != self.protocols_path.name
+                ),
+                tuple(
+                    (filepath.name, filepath.read_text())
+                    for filepath in self.before.iterdir()
+                    if filepath != self.protocols_path
+                ),
+            )
+            self.assertEqual(
+                ClassExtractor(config).extract_protocols(
+                    self.protocols_path.read_text()
+                ),
+                ClassExtractor(config).extract_protocols(
+                    (after / self.protocol_file_name).read_text()
+                ),
+            )
         finally:
             tuple(
                 filepath.write_text(content)

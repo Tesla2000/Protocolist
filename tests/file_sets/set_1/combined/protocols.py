@@ -5,11 +5,16 @@ from typing import Union
 
 @runtime_checkable
 class Content(ProtocolistProtocol):
-	content: Union["Content", Collection[Union["MessageFirstSubscript", str]], memoryview]
-	string: Union["MessageFirstSubscript", str]
+	content: Union["Content", Collection[Union["ContentSubscript", str]], memoryview]
+	string: Union["ContentSubscript", str]
 	def __iter__(self):
 		...
 	def __len__(self):
+		...
+@runtime_checkable
+class ContentSubscript(ProtocolistProtocol):
+	
+	def startswith(self, arg0: str):
 		...
 @runtime_checkable
 class Message(ProtocolistProtocol):
@@ -20,11 +25,6 @@ class Message(ProtocolistProtocol):
 	def __iter__(self):
 		...
 	def some_method(self, arg0: str, arg1: Union[int, str], string: Union[list, str]):
-		...
-@runtime_checkable
-class MessageFirstSubscript(ProtocolistProtocol):
-	
-	def startswith(self, arg0: str):
 		...
 @runtime_checkable
 class MessageSecondSubscript(ProtocolistProtocol):

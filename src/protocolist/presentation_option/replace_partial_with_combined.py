@@ -1,32 +1,53 @@
 from __future__ import annotations
 
+from typing import Optional
+
 import libcst
+from libcst import Annotation
+from libcst import BaseExpression
+from libcst import ClassDef
+from libcst import CSTTransformer
 from libcst import ImportFrom
 from libcst import Module
 from libcst import Name
 from libcst import Subscript
 
 from ..config import Config
-from ..transform.transformer import Transformer
 
 
-class ReplaceNames(Transformer):
+class ReplaceNames(CSTTransformer):
     def __init__(self, config: Config, replace_dictionary: dict[str, str]):
         super().__init__()
         self.config = config
-        self.replace_dictionary = replace_dictionary
+        self.replace_dictionary = replace_dictionary.copy()
+        self._annotation_names = set()
+
+    def visit_Annotation(self, node: "Annotation") -> Optional[bool]:
+        name_gatherer = _AnnotationNamesGatherer()
+        node.visit(name_gatherer)
+        self._annotation_names.update(name_gatherer.annotation_names)
+        return super().visit_Annotation(node)
+
+    def visit_ClassDef(self, node: "ClassDef") -> Optional[bool]:
+        class_name = node.name.value
+        if class_name in self.replace_dictionary:
+            del self.replace_dictionary[class_name]
+        return super().visit_ClassDef(node)
 
     def leave_Name(
         self, original_node: "Name", updated_node: "Name"
     ) -> "Name":
         value = updated_node.value
-        if value == self.replace_dictionary.get(value, value):
+        if (
+            value == self.replace_dictionary.get(value, value)
+            or original_node not in self._annotation_names
+        ):
             return updated_node
         return libcst.parse_expression(self.replace_dictionary[value])
 
     def leave_Subscript(
         self, original_node: "Subscript", updated_node: "Subscript"
-    ) -> "Subscript":
+    ) -> "BaseExpression":
         """Deduplication"""
         name = Module([updated_node]).code.partition("[")[0]
         if name != "Union":
@@ -37,7 +58,9 @@ class ReplaceNames(Transformer):
                 for slice in updated_node.slice
             )
         )
-        return libcst.parse_expression(f'{name}[{", ".join(types)}]')
+        if len(types) > 1:
+            return libcst.parse_expression(f'{name}[{", ".join(types)}]')
+        return libcst.parse_expression(types[0])
 
 
 class ReplaceImportsAndNames(ReplaceNames):
@@ -63,3 +86,13 @@ class ReplaceImportsAndNames(ReplaceNames):
                 + (as_name != original_name) * f" as {as_name}"
             ).body[0]
         return updated_node
+
+
+class _AnnotationNamesGatherer(CSTTransformer):
+    def __init__(self):
+        super().__init__()
+        self.annotation_names = set()
+
+    def visit_Name(self, node: "Name") -> Optional[bool]:
+        self.annotation_names.add(node)
+        return super().visit_Name(node)
