@@ -9,9 +9,13 @@ class Content2(ProtocolistProtocol):
 	def __len__(self):
 		...
 @runtime_checkable
-class Message2FirstSubscript(ProtocolistProtocol):
+class Content2Subscript(ProtocolistProtocol):
 	def startswith(self, arg0: str):
 		...
+@runtime_checkable
+class Content1(ProtocolistProtocol):
+	content: Union[Collection[Union[Content2Subscript, str]], Content2, memoryview]
+	string: Union[Content2Subscript, str]
 @runtime_checkable
 class Role1(ProtocolistProtocol):
 	def __delitem__(self, key):
@@ -26,10 +30,6 @@ class Role1(ProtocolistProtocol):
 		...
 	def __setitem__(self, key, value):
 		...
-@runtime_checkable
-class Content1(ProtocolistProtocol):
-	content: Union[Collection[Union[Message2FirstSubscript, str]], Content2, memoryview]
-	string: Union[Message2FirstSubscript, str]
 @runtime_checkable
 class Message1(ProtocolistProtocol):
 	content: Content1
@@ -51,7 +51,7 @@ class Message2SecondSubscript(ProtocolistProtocol):
 class Content(Content2, Content1, ProtocolistProtocol):
 	pass
 @runtime_checkable
-class MessageFirstSubscript(Message2FirstSubscript, ProtocolistProtocol):
+class ContentSubscript(Content2Subscript, ProtocolistProtocol):
 	pass
 @runtime_checkable
 class Role(Role1, ProtocolistProtocol):

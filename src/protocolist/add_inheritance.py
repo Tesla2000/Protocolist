@@ -6,13 +6,16 @@ from itertools import chain
 from itertools import product
 from pathlib import Path
 
+import libcst
+
 from .config import Config
 from .extract_methods_and_fields import extract_method_names_and_field_names
 from .get_mypy_exceptions import get_mypy_exceptions
 from .protocol_markers.types_marker_factory import create_type_marker
+from .transform.class_extractor import ClassExtractor
 from .transform.class_extractor import GlobalClassExtractor
 from .transform.inheritance_removing_class_extractor import (
-    InheritanceRemovingClassExtractor,
+    InheritanceRemover,
 )
 
 
@@ -22,10 +25,13 @@ def add_inheritance(
     file_content = file_path.read_text()
     interface_content = config.interfaces_path.read_text()
     interface_imports = interface_content.partition("@")[0]
-    file_class_extractor = InheritanceRemovingClassExtractor(
-        config, create_type_marker(config)
+    file_content = (
+        libcst.parse_module(file_content)
+        .visit(InheritanceRemover(config, create_type_marker(config)))
+        .code.replace(config.tab_length * " ", "\t")
     )
-    file_classes = file_class_extractor.extract_classes(file_content)
+    file_class_extractor = ClassExtractor(config, create_type_marker(config))
+    classes = file_class_extractor.extract_classes(file_content)
     file_imports = file_class_extractor.type_marker.imports
     imported_names = set(
         chain.from_iterable(
@@ -34,17 +40,14 @@ def add_inheritance(
             if key != config.interface_import_path
         )
     )
-    all_names = imported_names.union(file_classes.keys())
+    all_names = imported_names.union(classes.keys())
     interface_classes = class_extractor.get(config.interfaces_path).classes
     inheritances = []
-    file_content = file_class_extractor.updated_module.code.replace(
-        config.tab_length * " ", "\t"
-    )
     class_attributes = {
         key: extract_method_names_and_field_names(
             value, file_path, class_extractor
         )
-        for key, value in file_classes.items()
+        for key, value in classes.items()
     }
     interface_attributes = {
         key: extract_method_names_and_field_names(
@@ -52,7 +55,6 @@ def add_inheritance(
         )
         for key, value in interface_classes.items()
     }
-    classes = class_extractor.get(file_path).classes
 
     def _check_fields_and_methods(item: tuple[str, str]) -> bool:
         class_name, interface_name = item
@@ -72,7 +74,7 @@ def add_inheritance(
     for class_name, interface_name in filter(
         _check_fields_and_methods,
         product(
-            file_classes.keys(),
+            classes.keys(),
             sorted(
                 interface_classes.keys(), key=lambda name: name[-1].isnumeric()
             ),
@@ -182,5 +184,5 @@ def add_inheritance(
     result = file_content != file_path.read_text()
     if result:
         print(f"File {file_path} was modified")
-    file_path.write_text(file_content)
+        file_path.write_text(file_content)
     return result

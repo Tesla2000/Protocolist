@@ -35,6 +35,7 @@ class TypeMarker(ABC):
     def __init__(self, config: Config):
         self.config = config
         self.imported_interfaces = set()
+        self.imported_interfaces_as = {}
         self.imports = defaultdict(set)
 
     @abstractmethod
@@ -119,4 +120,14 @@ class TypeMarker(ABC):
             if import_path == self.config.interface_import_path:
                 self.imported_interfaces.update(
                     self.imports[import_path].difference({"Any"})
+                )
+                self.imported_interfaces_as.update(
+                    dict(
+                        (
+                            import_alias.evaluated_name,
+                            import_alias.evaluated_alias,
+                        )
+                        for import_alias in import_.names
+                        if import_alias.evaluated_alias
+                    )
                 )

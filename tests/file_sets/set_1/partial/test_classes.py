@@ -6,18 +6,18 @@ from typing import Union
 
 from tests.file_sets.set_1.before_update.protocols import Content1
 from tests.file_sets.set_1.before_update.protocols import Content2
+from tests.file_sets.set_1.before_update.protocols import Content2Subscript
 from tests.file_sets.set_1.before_update.protocols import Message1
 from tests.file_sets.set_1.before_update.protocols import Message2
-from tests.file_sets.set_1.before_update.protocols import Message2FirstSubscript
 from tests.file_sets.set_1.before_update.protocols import Message2SecondSubscript
 from tests.file_sets.set_1.before_update.protocols import Role1
 
 
-class Content(str, Message2FirstSubscript, Message2SecondSubscript, Content2, Message2):
+class Content(str, Content2Subscript, Message2SecondSubscript, Content2, Message2):
     content: Collection[str]
 
 
-class Role(str, Message2FirstSubscript, Message2SecondSubscript, Content2, Role1, Message2):
+class Role(str, Content2Subscript, Message2SecondSubscript, Content2, Role1, Message2):
     def __len__(self) -> int:
         return 1
 

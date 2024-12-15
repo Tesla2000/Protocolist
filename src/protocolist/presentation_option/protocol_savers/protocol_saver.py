@@ -53,7 +53,7 @@ class ProtocolSaver(ABC):
             ).extract_classes(code)
             grouped_classes = map_reduce(
                 extracted_classes.items(),
-                lambda item: FieldsAndMethodsExtractor.get_methods_and_fields(
+                lambda item: FieldsAndMethodsExtractor.get_methods_fields_and_bases(  # noqa: E501
                     item[-1]
                 ),
             )

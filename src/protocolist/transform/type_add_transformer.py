@@ -173,13 +173,13 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     for item_name, module_name in dict(self.imports).items()
                 )
             )
+            + "".join(interface_code.partition("@runtime_checkable")[1:])
             + "\n".join(
                 map(
                     "@runtime_checkable\n{}".format,
                     map(str.lstrip, protocols.values()),
                 )
             )
-            + "".join(interface_code.partition("@runtime_checkable")[1:])
         )
         self.config.interfaces_path.write_text(interface_code)
 

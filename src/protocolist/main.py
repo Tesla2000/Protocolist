@@ -63,11 +63,11 @@ def protocol(config: Config) -> int:
         )
     remove_star_imports(config)
     fail |= os.system(
-        f"reorder-python-imports {' '.join(config.pos_args)} "
-        f"{config.interfaces_path.absolute()} --py39-plus"
-    )
-    fail |= os.system(
         f"autoflake --in-place --remove-all-unused-imports "
         f"{' '.join(config.pos_args)} {config.interfaces_path.absolute()}"
+    )
+    fail |= os.system(
+        f"reorder-python-imports {' '.join(config.pos_args)} "
+        f"{config.interfaces_path.absolute()} --py39-plus"
     )
     return fail
