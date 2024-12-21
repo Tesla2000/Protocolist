@@ -9,10 +9,10 @@ from protocolist.main import protocol
 from protocolist.transform.class_extractor import ClassExtractor
 
 
-class Test(TestCase):
+class TestBase(TestCase):
+    before: Path
+
     def setUp(self):
-        self.protocol_file_name = "protocols.py"
-        self.before = Path("tests/file_sets/set_1/before_update")
         self.protocol_file_name = "protocols.py"
         self.protocols_path = self.before / self.protocol_file_name
 
