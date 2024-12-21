@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from itertools import filterfalse
 from pathlib import Path
 
 from protocolist.config import Config
@@ -9,24 +8,26 @@ from protocolist.presentation_option.presentation_option import (
 )
 from protocolist.protocol_markers.mark_options import MarkOption
 
-from tests.test import Test
+from tests.test_base import TestBase
 
 
-class TestBoth(Test):
-    def test_both(self):
-        after = Path("tests/file_sets/set_1/both")
+class TestSupportsIndex(TestBase):
+    def setUp(self):
+        self.before = Path("tests/file_sets/set_2/before_update")
+        super().setUp()
+
+    def test(self):
+        after = Path("tests/file_sets/set_2/after_update")
         config = Config(
             pos_args=tuple(
-                filterfalse(
-                    str(self.protocols_path).__eq__,
-                    map(
-                        str,
-                        self.before.iterdir(),
-                    ),
+                map(
+                    str,
+                    self.before.iterdir(),
                 )
             ),
             interfaces_path=str(self.protocols_path),
             mark_option=MarkOption.ALL,
-            protocol_presentation=PresentationOption.BOTH,
+            protocol_presentation=PresentationOption.PARTIAL_PROTOCOLS,
+            max_hint_length=100,
         )
         self._test(after, config)

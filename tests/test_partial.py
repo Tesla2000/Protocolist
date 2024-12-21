@@ -9,7 +9,7 @@ from protocolist.presentation_option.presentation_option import (
 )
 from protocolist.protocol_markers.mark_options import MarkOption
 
-from tests.tests import Test
+from tests.test import Test
 
 
 class TestPartial(Test):
