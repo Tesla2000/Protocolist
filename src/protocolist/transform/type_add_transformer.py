@@ -404,8 +404,11 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     f"Literal['{class_name}']",
                     1,
                 )
-                if subscription != ANY or self.config.allow_any:
-                    return interface + f"[{subscription}]"
+                new_interface = interface + f"[{subscription}]"
+                if (subscription != ANY or self.config.allow_any) and len(
+                    new_interface
+                ) <= self.config.max_hint_length:
+                    return new_interface
                 return interface
             if interface in types_parametrized_with_two_parameters:
                 subscript = class_name + "FirstSubscript"
@@ -431,12 +434,15 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     f"Literal['{class_name}']",
                     1,
                 )
+                new_interface = (
+                    interface + f"[{subscription1}, {subscription2}]"
+                )
                 if (
                     subscription1 != ANY
                     or subscription2 != ANY
                     or self.config.allow_any
-                ):
-                    return interface + f"[{subscription1}, {subscription2}]"
+                ) and len(new_interface) <= self.config.max_hint_length:
+                    return new_interface
                 return interface
             return interface
 
