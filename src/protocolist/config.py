@@ -40,6 +40,7 @@ class Config(BaseModel):
     tab_length: int = 4
     keep_hints: bool = True
     max_hint_length: int = sys.maxsize
+    protocols_optional_on_builtin: bool = True
 
     def __init__(self, /, **data: Any):
         data["interfaces_path"] = Path(

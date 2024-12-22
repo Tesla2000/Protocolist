@@ -457,40 +457,44 @@ class TypeAddTransformer(ImportVisitingTransformer):
         )
         valid_iterfaces = tuple(filter(is_interface_valid, valid_iterfaces))
         valid_iterfaces = tuple(map(add_subtypes, valid_iterfaces))
-        protocol = self._create_protocol(class_name, methods)
-        rest = self.updated_code.partition(import_statement)[-1]
-        self.updated_code = "\n".join(
-            (
-                import_statement.strip(),
-                "\n".join(
-                    f"from {entry.module_name} import {entry.item_name}"
-                    for entry in valid_external_lib_entries
-                ),
-                protocol.strip(),
-                rest.strip(),
+        valid_elements = [
+            *tuple(sorted(map(_add_collections, valid_iterfaces))),
+            *tuple(
+                sorted(
+                    map(
+                        lambda entry: entry.item_name,
+                        valid_external_lib_entries,
+                    )
+                )
+            ),
+        ]
+        if (
+            not valid_iterfaces and not valid_external_lib_entries
+        ) or self.config.protocols_optional_on_builtin:
+            protocol = self._create_protocol(class_name, methods)
+            rest = self.updated_code.partition(import_statement)[-1]
+            self.updated_code = "\n".join(
+                (
+                    import_statement.strip(),
+                    "\n".join(
+                        f"from {entry.module_name} import {entry.item_name}"
+                        for entry in valid_external_lib_entries
+                    ),
+                    protocol.strip(),
+                    rest.strip(),
+                )
             )
-        )
-        if not valid_iterfaces and not valid_external_lib_entries:
-            return to_camelcase(class_name)
-
-        def add_collections(interface: str) -> str:
-            return (interface in abc_classes) * "collections.abc." + interface
-
-        return f"Union[{', '.join(
-            (
-                *tuple(
-                    sorted(map(add_collections,
-                               valid_iterfaces
-                               ))
-                ),
-                *tuple(
-                    sorted(map(lambda entry: entry.item_name,
-                               valid_external_lib_entries
-                               ))
-                ),
-                to_camelcase(class_name)
-            )
-        )}]"
+            if not valid_iterfaces and not valid_external_lib_entries:
+                return to_camelcase(class_name)
+            return f"Union[{', '.join(
+                (
+                    *valid_elements,
+                    to_camelcase(class_name)
+                )
+            )}]"
+        if len(valid_elements) > 2:
+            return f"Union[{', '.join(valid_elements)}]"
+        return valid_elements[0]
 
     def _get_function_signature(
         self, function_name: str, updated_code: str
@@ -658,3 +662,7 @@ def divided_to_sub_elements(interface: str) -> set[str]:
     ):
         return {interface}
     return new_elements
+
+
+def _add_collections(interface: str) -> str:
+    return (interface in abc_classes) * "collections.abc." + interface

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tests.file_sets.set_1.before_update.class_inheritance import BaseFoo
+from tests.file_sets.general_set.before_update.class_inheritance import BaseFoo
 
 
 class Foo(BaseFoo):

@@ -14,7 +14,7 @@ from tests.test import Test
 
 class TestBoth(Test):
     def test_both(self):
-        after = Path("tests/file_sets/set_1/both")
+        after = Path("tests/file_sets/general_set/both")
         config = Config(
             pos_args=tuple(
                 filterfalse(

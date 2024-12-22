@@ -11,13 +11,13 @@ from protocolist.protocol_markers.mark_options import MarkOption
 from tests.test_base import TestBase
 
 
-class TestSupportsIndex(TestBase):
+class TestOptionalProtocols(TestBase):
     def setUp(self):
-        self.before = Path("tests/file_sets/supports_index/before_update")
+        self.before = Path("tests/file_sets/optional_protocols/before_update")
         super().setUp()
 
     def test(self):
-        after = Path("tests/file_sets/supports_index/after_update")
+        after = Path("tests/file_sets/optional_protocols/after_update")
         config = Config(
             pos_args=tuple(
                 map(
@@ -28,6 +28,6 @@ class TestSupportsIndex(TestBase):
             interfaces_path=str(self.protocols_path),
             mark_option=MarkOption.ALL,
             protocol_presentation=PresentationOption.PARTIAL_PROTOCOLS,
-            max_hint_length=100,
+            protocols_optional_on_builtin=False,
         )
         self._test(after, config)
