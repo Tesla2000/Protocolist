@@ -4,13 +4,13 @@ from collections.abc import Collection
 from collections.abc import Iterator
 from typing import Union
 
-from tests.file_sets.set_1.before_update.protocols import Content1
-from tests.file_sets.set_1.before_update.protocols import Content2
-from tests.file_sets.set_1.before_update.protocols import Content2Subscript
-from tests.file_sets.set_1.before_update.protocols import Message1
-from tests.file_sets.set_1.before_update.protocols import Message2
-from tests.file_sets.set_1.before_update.protocols import Message2SecondSubscript
-from tests.file_sets.set_1.before_update.protocols import Role1
+from tests.file_sets.general_set.before_update.protocols import Content1
+from tests.file_sets.general_set.before_update.protocols import Content2
+from tests.file_sets.general_set.before_update.protocols import Content2Subscript
+from tests.file_sets.general_set.before_update.protocols import Message1
+from tests.file_sets.general_set.before_update.protocols import Message2
+from tests.file_sets.general_set.before_update.protocols import Message2SecondSubscript
+from tests.file_sets.general_set.before_update.protocols import Role1
 
 
 class Content(str, Content2Subscript, Message2SecondSubscript, Content2, Message2):

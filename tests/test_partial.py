@@ -14,7 +14,7 @@ from tests.test import Test
 
 class TestPartial(Test):
     def test_partial(self):
-        after = Path("tests/file_sets/set_1/partial")
+        after = Path("tests/file_sets/general_set/partial")
         config = Config(
             pos_args=tuple(
                 filterfalse(

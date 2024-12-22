@@ -4,9 +4,9 @@ from collections.abc import Collection
 from collections.abc import Iterator
 from typing import Union
 
-from tests.file_sets.set_1.before_update.protocols import ContentSubscript
-from tests.file_sets.set_1.before_update.protocols import MessageSecondSubscript
-from tests.file_sets.set_1.before_update.protocols import Role as Role_
+from tests.file_sets.general_set.before_update.protocols import ContentSubscript
+from tests.file_sets.general_set.before_update.protocols import MessageSecondSubscript
+from tests.file_sets.general_set.before_update.protocols import Role as Role_
 
 
 class Content(str, ContentSubscript, MessageSecondSubscript):

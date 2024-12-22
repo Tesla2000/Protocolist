@@ -14,7 +14,7 @@ from tests.test import Test
 
 class TestCombined(Test):
     def test_combined(self):
-        after = Path("tests/file_sets/set_1/combined")
+        after = Path("tests/file_sets/general_set/combined")
         config = Config(
             pos_args=tuple(
                 filterfalse(

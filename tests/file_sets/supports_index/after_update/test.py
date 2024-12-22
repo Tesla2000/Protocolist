@@ -4,7 +4,7 @@ from collections.abc import Mapping
 from collections.abc import Sequence
 from typing import Union
 
-from tests.file_sets.set_2.before_update.protocols import Array1
+from tests.file_sets.supports_index.before_update.protocols import Array1
 
 
 def foo(array: Union[Array1, Mapping, Sequence, memoryview]) -> None:
