@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from itertools import chain
 from typing import Optional
 
 import libcst
@@ -13,6 +14,7 @@ from libcst import Name
 from libcst import Subscript
 
 from ..config import Config
+from ..consts import grouped_types
 
 
 class ReplaceNames(CSTTransformer):
@@ -21,6 +23,7 @@ class ReplaceNames(CSTTransformer):
         self.config = config
         self.replace_dictionary = replace_dictionary.copy()
         self._annotation_names = set()
+        self.applicable_groups = set()
 
     def visit_Annotation(self, node: "Annotation") -> Optional[bool]:
         name_gatherer = _AnnotationNamesGatherer()
@@ -52,12 +55,22 @@ class ReplaceNames(CSTTransformer):
         name = Module([updated_node]).code.partition("[")[0]
         if name != "Union":
             return updated_node
-        types = sorted(
-            set(
-                Module([slice]).code.strip(", \n")
-                for slice in updated_node.slice
+        types = set(
+            Module([slice]).code.strip(", \n") for slice in updated_node.slice
+        )
+        applicable_groups = tuple(
+            filter(
+                lambda group: all(map(types.__contains__, group.str_types)),
+                grouped_types,
             )
         )
+        group_names = tuple(group.name for group in applicable_groups)
+        types.difference_update(
+            chain.from_iterable(group.str_types for group in applicable_groups)
+        )
+        types.update(group_names)
+        self.applicable_groups.update(applicable_groups)
+        types = sorted(types)
         if len(types) > 1:
             return libcst.parse_expression(f'{name}[{", ".join(types)}]')
         return libcst.parse_expression(types[0])

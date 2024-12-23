@@ -18,6 +18,7 @@ from libcst import Module
 from more_itertools.more import map_reduce
 
 from ...config import Config
+from ...consts import grouped_types
 from ...fields_methods_extractor import FieldsAndMethodsExtractor
 from ...protocol_markers.types_marker_factory import create_type_marker
 from ...transform.class_extractor import ClassExtractor
@@ -89,6 +90,7 @@ class ProtocolSaver(ABC):
         self.config.interfaces_path.write_text(code)
 
     def _update_imports_and_names(self):
+        all_applicable_groups = set()
         for filepath in filter(
             lambda path: path.suffix == ".py", map(Path, self.config.pos_args)
         ):
@@ -100,14 +102,30 @@ class ProtocolSaver(ABC):
                 while value in names_getter.local_names:
                     value += "_"
                 imports_as[key] = value
-
-            filepath.write_text(
-                module.visit(
-                    ReplaceImportsAndNames(
-                        self.config, self.replace_dictionary, imports_as
-                    )
-                ).code
+            visitor = ReplaceImportsAndNames(
+                self.config, self.replace_dictionary, imports_as
             )
+            code = module.visit(visitor).code
+            filepath.write_text(
+                "".join(
+                    f"from {self.config.interface_import_path}"
+                    f" import {group.name}\n"
+                    for group in visitor.applicable_groups
+                )
+                + code
+            )
+            all_applicable_groups.update(visitor.applicable_groups)
+        contents = self.config.interfaces_path.read_text()
+        imports, at, rest = contents.partition("@")
+        grouped_types_code = "".join(
+            f"{group.name} = Union[{', '.join(group.str_types)}]\n"
+            for group in all_applicable_groups
+        )
+        for group in grouped_types:
+            imports = imports.replace(f"{group.name} = {group.name}\n", "")
+        self.config.interfaces_path.write_text(
+            imports + grouped_types_code + at + rest
+        )
 
 
 class _LocalNamesGetter(CSTTransformer):

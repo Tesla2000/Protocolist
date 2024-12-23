@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from functools import reduce
 from operator import itemgetter
+from typing import NamedTuple
 
 protocol_replacement_name = "ProtocolistProtocol"
 import_statement = (
@@ -1418,4 +1420,17 @@ types_parametrized_with_two_parameters = [
     "Mapping",
 ]
 
+
+class _GroupedTypes(NamedTuple):
+    name: str
+    types: Sequence[type]
+
+    @property
+    def str_types(self) -> Sequence[str]:
+        return tuple(t.__name__ for t in self.types)
+
+
+grouped_types = [
+    _GroupedTypes("CharSequence", (str, bytes, bytearray)),
+]
 hint_translations = {"list[Never]": "list", "filter[Any]": "filter"}

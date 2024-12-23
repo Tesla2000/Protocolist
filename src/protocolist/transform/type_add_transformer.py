@@ -268,7 +268,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                         ),
                     )
                     compatible_type = self._handle_incompatible_type(
-                        function_name, exceptions
+                        function_name, exceptions, class_name
                     )
                     self.updated_code = self.updated_code.replace(
                         class_code,
@@ -285,19 +285,31 @@ class TypeAddTransformer(ImportVisitingTransformer):
             self._protocols_with_methods.add(class_name)
 
     def _handle_incompatible_type(
-        self, function_name: str, exceptions: list[str]
+        self, function_name: str, exceptions: list[str], class_name: str
     ):
         incompatible_type_pattern = rf"Argument \S+ to \"{function_name}\" of \"[^\"]+\" has incompatible type \"([^\"]+)\"; expected \"None\""  # noqa: E501
         incompatible_type_search = re.compile(incompatible_type_pattern).search
         types = tuple(
             hint_translations.get(type, type)
             for type in set(
-                incompatible_type_exception.group(1)
-                for incompatible_type_exception in map(
-                    incompatible_type_search,
-                    filter(incompatible_type_search, exceptions),
+                map(
+                    str.strip,
+                    chain.from_iterable(
+                        (
+                            incompatible_type_exception.group(1).split("|")
+                            for incompatible_type_exception in map(
+                                incompatible_type_search,
+                                filter(incompatible_type_search, exceptions),
+                            )
+                        )
+                    ),
                 )
             )
+        )
+        types = tuple(
+            {class_name: "Self"}.get(type, type)
+            for type in types
+            if type != ANY
         )
         if not types:
             return ANY
@@ -638,7 +650,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 ):
                     return new_class_code
                 hint = self._handle_incompatible_type(
-                    function_name, exceptions
+                    function_name, exceptions, class_name
                 )
                 if hint != ANY or self.config.allow_any:
                     new_class_code = class_code.replace(
