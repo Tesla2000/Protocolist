@@ -28,6 +28,6 @@ class TestOptionalProtocols(TestBase):
             interfaces_path=str(self.protocols_path),
             mark_option=MarkOption.ALL,
             protocol_presentation=PresentationOption.PARTIAL_PROTOCOLS,
-            protocols_optional_on_builtin=False,
+            protocols_optional_on_builtin=True,
         )
         self._test(after, config)

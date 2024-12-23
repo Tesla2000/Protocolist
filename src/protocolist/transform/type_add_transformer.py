@@ -43,6 +43,7 @@ from ..protocol_markers.marker.type_marker import TypeMarker
 from ..protocol_markers.types_marker_factory import (
     create_type_marker,
 )
+from ..supports_getitem import SupportsGetitemOption
 from ..to_camelcase import to_camelcase
 from ..transform.class_extractor import ClassExtractor
 from ..transform.class_extractor import GlobalClassExtractor
@@ -456,6 +457,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
             )
         )
         valid_iterfaces = tuple(filter(is_interface_valid, valid_iterfaces))
+        valid_iterfaces = self._filter_valid_interfaces(valid_iterfaces)
         valid_iterfaces = tuple(map(add_subtypes, valid_iterfaces))
         valid_elements = [
             *tuple(sorted(map(_add_collections, valid_iterfaces))),
@@ -470,7 +472,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         ]
         if (
             not valid_iterfaces and not valid_external_lib_entries
-        ) or self.config.protocols_optional_on_builtin:
+        ) or not self.config.protocols_optional_on_builtin:
             protocol = self._create_protocol(class_name, methods)
             rest = self.updated_code.partition(import_statement)[-1]
             self.updated_code = "\n".join(
@@ -495,6 +497,24 @@ class TypeAddTransformer(ImportVisitingTransformer):
         if len(valid_elements) > 2:
             return f"Union[{', '.join(valid_elements)}]"
         return valid_elements[0]
+
+    def _filter_valid_interfaces(
+        self, valid_interfaces: Iterable[str]
+    ) -> Iterable[str]:
+        def filter_function(interface: str) -> bool:
+            if interface == "memoryview" and self.config.exclude_memoryview:
+                return False
+            if self.config.supports_getitem_option is None:
+                return True
+            return not (
+                any(
+                    interface == option.value
+                    for option in SupportsGetitemOption
+                )
+                and interface != self.config.supports_getitem_option.value
+            )
+
+        return filter(filter_function, valid_interfaces)
 
     def _get_function_signature(
         self, function_name: str, updated_code: str

@@ -7,19 +7,20 @@ from protocolist.presentation_option.presentation_option import (
     PresentationOption,
 )
 from protocolist.protocol_markers.mark_options import MarkOption
+from protocolist.supports_getitem import SupportsGetitemOption
 
 from tests.test_base import TestBase
 
 
-class TestSupportsIndex(TestBase):
+class TestSupportsGetitemOption(TestBase):
     def setUp(self):
         self.before = Path(
-            "tests/file_sets/supports_index_limit/before_update"
+            "tests/file_sets/supports_getitem_choice/before_update"
         )
         super().setUp()
 
     def test(self):
-        after = Path("tests/file_sets/supports_index_limit/after_update")
+        after = Path("tests/file_sets/supports_getitem_choice/after_update")
         config = Config(
             pos_args=tuple(
                 map(
@@ -30,6 +31,7 @@ class TestSupportsIndex(TestBase):
             interfaces_path=str(self.protocols_path),
             mark_option=MarkOption.ALL,
             protocol_presentation=PresentationOption.PARTIAL_PROTOCOLS,
-            max_hint_length=100,
+            supports_getitem_option=SupportsGetitemOption.SEQUENCE,
+            protocols_optional_on_builtin=True,
         )
         self._test(after, config)
