@@ -24,7 +24,7 @@ repos:
       - id: flake8
         args: [ "--ignore=E203,W503,E704" ]
   - repo: https://github.com/Tesla2000/AutodocRemote
-    rev: '0.2.2'
+    rev: '0.2.3'
     hooks:
       - id: autodocremote
         stages: [push]

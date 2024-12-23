@@ -17,6 +17,7 @@ from pydantic_core import PydanticUndefined
 from .custom_argument_parser import CustomArgumentParser
 from .presentation_option.presentation_option import PresentationOption
 from .protocol_markers.mark_options import MarkOption
+from .supports_getitem import SupportsGetitemOption
 from .utils.filepath2import_path import filepath2import_path
 
 load_dotenv()
@@ -40,7 +41,9 @@ class Config(BaseModel):
     tab_length: int = 4
     keep_hints: bool = True
     max_hint_length: int = sys.maxsize
-    protocols_optional_on_builtin: bool = True
+    protocols_optional_on_builtin: bool = False
+    supports_getitem_option: Optional[SupportsGetitemOption] = None
+    exclude_memoryview: bool = False
 
     def __init__(self, /, **data: Any):
         data["interfaces_path"] = Path(
