@@ -33,6 +33,7 @@ from ..consts import import_statement
 from ..consts import protocol_replacement_name
 from ..consts import types_parametrized_with_one_parameter
 from ..consts import types_parametrized_with_two_parameters
+from ..extract_annotations import extract_annotations
 from ..get_external_library_classes import ExternalLibElement
 from ..get_external_library_classes import (
     get_external_library_classes,
@@ -78,10 +79,12 @@ class TypeAddTransformer(ImportVisitingTransformer):
         self._lambda_params = set()
         self._classes_of_methods: dict[FunctionDef, ClassDef] = {}
         self._protocols_with_methods = set()
+        self._function_translations = {}
 
     def leave_FunctionDef(
         self, original_node: "FunctionDef", updated_node: "FunctionDef"
     ) -> "FunctionDef":
+        original_code = Module([original_node]).code
         if original_node in self._classes_of_methods:
             class_ = self._classes_of_methods[original_node]
             updated_function_code = Module(
@@ -98,7 +101,13 @@ class TypeAddTransformer(ImportVisitingTransformer):
             ).code
         else:
             updated_function_code = Module([updated_node]).code
-        self.updated_code = import_statement + updated_function_code
+        self.updated_code = (
+            import_statement
+            + self._translate_code(
+                self.filepath.read_text(), original_code.rstrip(), ""
+            )
+            + updated_function_code
+        )
         for _ in range(20):
             protocol_items = tuple(self.protocols.items())
             for protocol in self.protocols.get_protocols():
@@ -121,7 +130,31 @@ class TypeAddTransformer(ImportVisitingTransformer):
         else:
             raise ValueError
         self._save_protocols()
-        return self._update_parameters(updated_node)
+        result = self._update_parameters(updated_node)
+        self._function_translations[original_code] = Module([result]).code
+        return result
+
+    def _translate_code(self, code: str, original: str, updated: str):
+        for key, value in sorted(
+            self._function_translations.items(), key=lambda item: -len(item[0])
+        ):
+            code = code.replace(key, value)
+        code = code.replace(original, updated)
+        contains_all = type(
+            "Protocols",
+            tuple(),
+            {"__contains__": lambda *args, **kwargs: True},
+        )()
+        return (
+            "".join(
+                f"from {self.config.interface_import_path}"
+                f" import {annotation}\n"
+                for annotation in extract_annotations(
+                    self.annotations, contains_all
+                )
+            )
+            + code
+        )
 
     def new_protocols_code(self, code: str) -> str:
         for full_annotation, new_annotation in sorted(
@@ -307,9 +340,9 @@ class TypeAddTransformer(ImportVisitingTransformer):
             )
         )
         types = tuple(
-            {class_name: "Self"}.get(type, type)
+            type
             for type in types
-            if type != ANY
+            if type != ANY and type not in self.protocols.get_protocols()
         )
         if not types:
             return ANY
@@ -327,6 +360,17 @@ class TypeAddTransformer(ImportVisitingTransformer):
         exceptions = frozenset(exceptions)
         if not exceptions:
             return ANY
+        pattern_search = re.compile(
+            r"has incompatible type \"None\"; expected \"([^\"]+)\""
+        ).search
+        method_compatibility_interfaces = set(
+            chain.from_iterable(
+                pattern.group(1).split(" | ")
+                for pattern in map(
+                    pattern_search, filter(pattern_search, exceptions)
+                )
+            )
+        )
         methods = list(
             method.split("(")[0]
             for pattern, method in exception2method.items()
@@ -345,7 +389,11 @@ class TypeAddTransformer(ImportVisitingTransformer):
         )
         methods += attributes
         if not methods:
-            return ANY
+            return (
+                f"Union[{', '.join(method_compatibility_interfaces)}]"
+                if method_compatibility_interfaces
+                else ANY
+            )
         valid_iterfaces = tuple(
             (interface, superclasses)
             for interface, superclasses, interface_methods in (
@@ -469,7 +517,9 @@ class TypeAddTransformer(ImportVisitingTransformer):
             )
         )
         valid_iterfaces = tuple(filter(is_interface_valid, valid_iterfaces))
-        valid_iterfaces = self._filter_valid_interfaces(valid_iterfaces)
+        valid_iterfaces = self._filter_valid_interfaces(
+            valid_iterfaces, method_compatibility_interfaces
+        )
         valid_iterfaces = tuple(map(add_subtypes, valid_iterfaces))
         valid_elements = [
             *tuple(sorted(map(_add_collections, valid_iterfaces))),
@@ -511,8 +561,17 @@ class TypeAddTransformer(ImportVisitingTransformer):
         return valid_elements[0]
 
     def _filter_valid_interfaces(
-        self, valid_interfaces: Iterable[str]
+        self,
+        valid_interfaces: Iterable[str],
+        method_compatibility_interfaces: Iterable[str],
     ) -> Iterable[str]:
+        if method_compatibility_interfaces:
+            valid_interfaces = tuple(
+                set(valid_interfaces).difference(
+                    method_compatibility_interfaces
+                )
+            )
+
         def filter_function(interface: str) -> bool:
             if interface == "memoryview" and self.config.exclude_memoryview:
                 return False

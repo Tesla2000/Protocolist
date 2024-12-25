@@ -2,18 +2,14 @@ from __future__ import annotations
 
 import collections
 import typing
-from itertools import chain
-from itertools import filterfalse
-from operator import itemgetter
 from pathlib import Path
 
 import libcst as cst
 from mypy.memprofile import defaultdict
 
 from ..config import Config
-from ..consts import builtin_types
+from ..extract_annotations import extract_annotations
 from ..protocol_markers.types_marker_factory import create_type_marker
-from ..utils.split_annotations import split_annotations
 from .class_extractor import ClassExtractor
 from .class_extractor import GlobalClassExtractor
 from .type_add_transformer import TypeAddTransformer
@@ -42,23 +38,7 @@ def create_protocols(
     protocols = ClassExtractor(
         config, create_type_marker(config)
     ).extract_protocols(config.interfaces_path.read_text())
-    annotations = tuple(
-        annotation
-        for annotation in filterfalse(
-            tuple(map(itemgetter(0), builtin_types)).__contains__,
-            chain.from_iterable(
-                map(
-                    split_annotations,
-                    transformer.annotations.values(),
-                )
-            ),
-        )
-        if (
-            annotation in protocols
-            or annotation in dir(typing)
-            or annotation in dir(collections.abc)
-        )
-    )
+    annotations = extract_annotations(transformer.annotations, protocols)
     new_code = (
         "".join(
             set(
