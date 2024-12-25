@@ -1227,6 +1227,10 @@ builtin_types = [
         ],
     ),
 ]
+existing_types = (
+    *tuple(class_[0] for class_ in abc_classes),
+    *tuple(type_[0] for type_ in builtin_types),
+)
 dunder_methods = tuple(
     filter(
         lambda method: method.startswith("__"),
