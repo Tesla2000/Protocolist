@@ -1437,4 +1437,8 @@ class _GroupedTypes(NamedTuple):
 grouped_types = [
     _GroupedTypes("CharSequence", (str, bytes, bytearray)),
 ]
-hint_translations = {"list[Never]": "list", "filter[Any]": "filter"}
+hint_translations = {
+    "list[Never]": "list",
+    "Iterable[Never]": "list",
+    "filter[Any]": "filter",
+}
