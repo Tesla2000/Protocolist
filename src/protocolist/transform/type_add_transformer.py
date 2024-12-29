@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import re
 from collections import OrderedDict
+from collections.abc import Collection
 from collections.abc import Iterable
+from collections.abc import Sequence
+from functools import partial
 from itertools import chain
 from itertools import filterfalse
 from pathlib import Path
@@ -28,6 +31,7 @@ from ..consts import builtin_types
 from ..consts import dunder_method_params
 from ..consts import dunder_methods
 from ..consts import exception2method
+from ..consts import existing_types
 from ..consts import hint_translations
 from ..consts import import_statement
 from ..consts import protocol_replacement_name
@@ -150,7 +154,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 f"from {self.config.interface_import_path}"
                 f" import {annotation}\n"
                 for annotation in extract_annotations(
-                    self.annotations, contains_all
+                    self.annotations, contains_all, self.config
                 )
             )
             + code
@@ -350,6 +354,22 @@ class TypeAddTransformer(ImportVisitingTransformer):
             return types[0]
         return f"Union[{', '.join(types)}]"
 
+    def _get_compatible_interfaces(
+        self, patterns: Iterable[str], exceptions: Collection[str]
+    ) -> Sequence[set[str]]:
+        def get_interfaces(pattern: str):
+            pattern_search = re.compile(pattern).search
+            return set(
+                chain.from_iterable(
+                    pattern.group(1).split(" | ")
+                    for pattern in map(
+                        pattern_search, filter(pattern_search, exceptions)
+                    )
+                )
+            )
+
+        return tuple(map(get_interfaces, patterns))
+
     def _get_missing_interface(self, class_name: str) -> str:
         exceptions = get_mypy_exceptions(
             self.temp_python_file,
@@ -360,41 +380,34 @@ class TypeAddTransformer(ImportVisitingTransformer):
         exceptions = frozenset(exceptions)
         if not exceptions:
             return ANY
-        pattern_search = re.compile(
-            r"has incompatible type \"None\"; expected \"([^\"]+)\""
-        ).search
-        method_compatibility_interfaces = set(
-            chain.from_iterable(
-                pattern.group(1).split(" | ")
-                for pattern in map(
-                    pattern_search, filter(pattern_search, exceptions)
-                )
+        method_compatibility_interfaces = self._get_compatible_interfaces(
+            [r"has incompatible type \"None\"; expected \"([^\"]+)\""],
+            exceptions,
+        )[0]
+        methods = tuple(
+            frozenset(
+                method.split("(")[0]
+                for pattern, method in exception2method.items()
+                if any(map(re.compile(pattern).search, exceptions))
             )
-        )
-        methods = list(
-            method.split("(")[0]
-            for pattern, method in exception2method.items()
-            if any(map(re.compile(pattern).search, exceptions))
         )
         pattern_search = re.compile(
             r"\"None\" has no attribute \"([^\"]+)\""
         ).search
-        attributes = list(
-            set(
-                pattern.group(1)
-                for pattern in map(
-                    pattern_search, filter(pattern_search, exceptions)
-                )
+        attributes = set(
+            pattern.group(1)
+            for pattern in map(
+                pattern_search, filter(pattern_search, exceptions)
             )
         )
-        methods += attributes
+        methods = list(attributes.union(methods))
         if not methods:
             return (
                 f"Union[{', '.join(method_compatibility_interfaces)}]"
                 if method_compatibility_interfaces
                 else ANY
             )
-        valid_iterfaces = tuple(
+        matching_iterfaces = tuple(
             (interface, superclasses)
             for interface, superclasses, interface_methods in (
                 abc_classes + builtin_types
@@ -402,18 +415,33 @@ class TypeAddTransformer(ImportVisitingTransformer):
             if all(map(interface_methods.__contains__, methods))
         )
         valid_interface_names = tuple(
-            interface for interface, _ in valid_iterfaces
+            interface for interface, _ in matching_iterfaces
         )
-        valid_iterfaces = tuple(
+        matching_iterfaces = tuple(
             interface
-            for interface, superclasses in valid_iterfaces
+            for interface, superclasses in matching_iterfaces
             if not any(map(valid_interface_names.__contains__, superclasses))
         )
         external_lib_entries = get_external_library_classes(
             self.config.external_libraries,
             self.config.excluded_libraries,
             methods,
-            valid_iterfaces,
+            matching_iterfaces,
+        )
+        patterns = (
+            r'Non-overlapping equality check \(left operand type: "[^"]*None[^"]*", right operand type: "([^"]+)"',  # noqa: E501
+            r'Non-overlapping equality check \(left operand type: "([^"]+)", right operand type: "[^"]*None[^"]*"',  # noqa: E501
+            r'Invalid index type "([^"]+)" for "[^"]*None[^"]*"',
+        )
+        matching_iterfaces = tuple(
+            set(
+                chain.from_iterable(
+                    self._get_compatible_interfaces(
+                        patterns,
+                        exceptions,
+                    )
+                )
+            ).union(matching_iterfaces)
         )
 
         def is_signature_correct(interface: str, updated_code: str) -> bool:
@@ -516,7 +544,9 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 for entry in valid_external_lib_entries
             )
         )
-        valid_iterfaces = tuple(filter(is_interface_valid, valid_iterfaces))
+        valid_iterfaces = tuple(filter(is_interface_valid, matching_iterfaces))
+        if not valid_iterfaces and matching_iterfaces:
+            return ANY
         valid_iterfaces = self._filter_valid_interfaces(
             valid_iterfaces, method_compatibility_interfaces
         )
@@ -563,19 +593,26 @@ class TypeAddTransformer(ImportVisitingTransformer):
     def _filter_valid_interfaces(
         self,
         valid_interfaces: Iterable[str],
-        method_compatibility_interfaces: Iterable[str],
+        method_compatibility_interfaces: Collection[str],
     ) -> Iterable[str]:
-        if method_compatibility_interfaces:
-            valid_interfaces = tuple(
-                set(valid_interfaces).difference(
-                    method_compatibility_interfaces
-                )
+        valid_interfaces = tuple(
+            filter(
+                partial(
+                    _is_compatible,
+                    compatible_interfaces=method_compatibility_interfaces,
+                ),
+                valid_interfaces,
             )
+        )
 
         def filter_function(interface: str) -> bool:
             if interface == "memoryview" and self.config.exclude_memoryview:
                 return False
-            if self.config.supports_getitem_option is None:
+            if (
+                self.config.supports_getitem_option is None
+                or self.config.supports_getitem_option.value
+                not in valid_interfaces
+            ):
                 return True
             return not (
                 any(
@@ -757,3 +794,19 @@ def divided_to_sub_elements(interface: str) -> set[str]:
 
 def _add_collections(interface: str) -> str:
     return (interface in abc_classes) * "collections.abc." + interface
+
+
+def _is_compatible(
+    interface: str, compatible_interfaces: Collection[str]
+) -> bool:
+    if not compatible_interfaces:
+        return True
+    if interface in compatible_interfaces:
+        return True
+    if interface not in existing_types:
+        return True
+    return all(
+        all(map(superclasses.__contains__, compatible_interfaces))
+        for builtin_interface, superclasses, _ in (abc_classes + builtin_types)
+        if interface == builtin_interface
+    )

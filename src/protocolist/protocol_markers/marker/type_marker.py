@@ -48,7 +48,7 @@ class TypeMarker(ABC):
         self, updated_node: "Param", protocols: ProtocolDict, annotations: dict
     ) -> Optional[Annotation]:
         param_name = to_camelcase(updated_node.name.value)
-        if param_name.lower() == "self":
+        if param_name.lower() in "self" or updated_node.star:
             return
         protocols[param_name] += 1
         numeric_param_name = param_name + str(protocols[param_name])

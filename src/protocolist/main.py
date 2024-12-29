@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import os
 import re
+from itertools import compress
 from operator import itemgetter
 from pathlib import Path
 
@@ -28,7 +29,6 @@ def main() -> int:
 
 
 def protocol(config: Config) -> int:
-    fail = 0
     paths = tuple(
         filter(lambda path: path.suffix == ".py", map(Path, config.pos_args))
     )
@@ -51,25 +51,33 @@ def protocol(config: Config) -> int:
         )
     )
     protocols = ProtocolDict(int, **interfaces)
-    for filepath in paths:
-        fail |= create_protocols(
+    is_file_modified = tuple(
+        create_protocols(
             filepath,
             config=config,
             protocols=protocols,
             class_extractor=global_class_extractor,
         )
+        for filepath in paths
+    )
     create_protocol_saver(config).modify_protocols()
-    for filepath in paths:
-        fail |= add_inheritance(
+    is_file_modified = tuple(
+        add_inheritance(
             filepath, config=config, class_extractor=global_class_extractor
         )
+        or modified
+        for filepath, modified in zip(paths, is_file_modified)
+    )
     remove_star_imports(config)
+    fail = any(is_file_modified)
     fail |= os.system(
         f"autoflake --in-place --remove-all-unused-imports "
-        f"{' '.join(config.pos_args)} {config.interfaces_path.absolute()}"
+        f"{' '.join(compress(config.pos_args, is_file_modified))} "
+        f"{config.interfaces_path.absolute()}"
     )
     fail |= os.system(
-        f"reorder-python-imports {' '.join(config.pos_args)} "
+        f"reorder-python-imports "
+        f"{' '.join(compress(config.pos_args, is_file_modified))} "
         f"{config.interfaces_path.absolute()} --py39-plus"
     )
     return fail
