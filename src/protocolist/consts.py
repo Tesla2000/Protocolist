@@ -22,6 +22,20 @@ exception2method = dict(
             r"No overload variant of \"iter\" matches argument type \"None\"",  # noqa: E501
             r"\"None\" has no attribute \"__iter__\"",
             r'No overload variant of "next" matches argument type "(?!Literal\[)[^"]+"',  # noqa: E501
+            r'Unsupported operand types for \+ \("None" and "[^\"]+"\)',
+            r'Unsupported operand types for \+ \("[^\"]+" and "None"\)',
+            r'Unsupported operand types for - \("None" and "[^\"]+"\)',
+            r'Unsupported operand types for - \("[^\"]+" and "None"\)',
+            r'Unsupported operand types for \* \("None" and "[^\"]+"\)',
+            r'Unsupported operand types for \* \("[^\"]+" and "None"\)',
+            r'Unsupported operand types for \*\* \("None" and "[^\"]+"\)',
+            r'Unsupported operand types for \*\* \("[^\"]+" and "None"\)',
+            r'Unsupported operand types for % \("None" and "[^\"]+"\)',
+            r'Unsupported operand types for % \("[^\"]+" and "None"\)',
+            r'Unsupported operand types for / \("None" and "[^\"]+"\)',
+            r'Unsupported operand types for / \("[^\"]+" and "None"\)',
+            r'Unsupported operand types for // \("None" and "[^\"]+"\)',
+            r'Unsupported operand types for // \("[^\"]+" and "None"\)',
         ),
         (
             "__setitem__(self, index, value)",
@@ -30,6 +44,20 @@ exception2method = dict(
             "__iter__(self)",
             "__iter__(self)",
             "__next__(self)",
+            "__add__(self, other)",
+            "__add__(self, other)",
+            "__sub__(self, other)",
+            "__sub__(self, other)",
+            "__mul__(self, other)",
+            "__mul__(self, other)",
+            "__pow__(self, exponent, modulus=None)",
+            "__pow__(self, exponent, modulus=None)",
+            "__divmod__(self, other)",
+            "__divmod__(self, other)",
+            "__truediv__(self, other)",
+            "__truediv__(self, other)",
+            "__floordiv__(self, other)",
+            "__floordiv__(self, other)",
         ),
     )
 )
@@ -1439,6 +1467,6 @@ grouped_types = [
 ]
 hint_translations = {
     "list[Never]": "list",
-    "Iterable[Never]": "list",
+    "Iterable[Never]": "Iterable",
     "filter[Any]": "filter",
 }

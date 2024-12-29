@@ -39,7 +39,9 @@ def create_protocols(
     protocols = ClassExtractor(
         config, create_type_marker(config)
     ).extract_protocols(config.interfaces_path.read_text())
-    annotations = extract_annotations(transformer.annotations, protocols)
+    annotations = extract_annotations(
+        transformer.annotations, protocols, config
+    )
     new_code = (
         "".join(
             set(
