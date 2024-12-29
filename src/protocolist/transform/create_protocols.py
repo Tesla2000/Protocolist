@@ -8,7 +8,6 @@ import libcst as cst
 from mypy.memprofile import defaultdict
 
 from ..config import Config
-from ..consts import ANY
 from ..extract_annotations import extract_annotations
 from ..protocol_markers.types_marker_factory import create_type_marker
 from .class_extractor import ClassExtractor
@@ -54,7 +53,6 @@ def create_protocols(
                     f"from typing import {annotation}\n"
                     for annotation in annotations
                     if annotation in dir(typing)
-                    and (annotation != ANY or config.allow_any)
                 )
             )
             .union(

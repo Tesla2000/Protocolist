@@ -18,8 +18,8 @@ from protocolist.utils.split_annotations import split_annotations
 
 def extract_annotations(
     annotations: Mapping, protocols: Collection, config: Config
-) -> typing.Sequence[str]:
-    return tuple(
+) -> frozenset[str]:
+    return frozenset(
         annotation
         for annotation in filterfalse(
             tuple(map(itemgetter(0), builtin_types)).__contains__,
@@ -37,7 +37,6 @@ def extract_annotations(
             annotation in protocols
             or annotation in dir(typing)
             or annotation in dir(collections.abc)
-            and (annotation != ANY or config.allow_any)
         )
     )
 
