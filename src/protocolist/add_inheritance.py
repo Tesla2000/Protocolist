@@ -25,6 +25,7 @@ def add_inheritance(
     file_content = file_path.read_text()
     interface_content = config.interfaces_path.read_text()
     interface_imports = interface_content.partition("@")[0]
+    config.tab_length = config.tab_lengths[file_path]
     file_content = (
         libcst.parse_module(file_content)
         .visit(InheritanceRemover(config, create_type_marker(config)))
@@ -180,7 +181,7 @@ def add_inheritance(
             )
         )
         + file_content
-    ).replace("\t", config.tab_length * " ")
+    ).replace("\t", config.tab_lengths[file_path] * " ")
     result = file_content != file_path.read_text()
     if result:
         print(f"File {file_path} was modified")

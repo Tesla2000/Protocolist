@@ -360,24 +360,34 @@ class TypeAddTransformer(ImportVisitingTransformer):
         def get_interfaces(pattern: str):
             pattern_search = re.compile(pattern).search
             return set(
-                chain.from_iterable(
+                elem.partition("[")[0]
+                for elem in chain.from_iterable(
                     pattern.group(1).split(" | ")
                     for pattern in map(
                         pattern_search, filter(pattern_search, exceptions)
                     )
                 )
-            )
+            ) - {"Literal"}
 
         return tuple(map(get_interfaces, patterns))
 
     def _get_missing_interface(self, class_name: str) -> str:
-        exceptions = get_mypy_exceptions(
+        previous_exceptions = get_mypy_exceptions(
             self.temp_python_file,
             self.new_protocols_code(
-                self.updated_code.replace(f"Literal['{class_name}']", "None")
+                self.updated_code.replace(f"Literal['{class_name}']", ANY)
             ),
         )
-        exceptions = frozenset(exceptions)
+        exceptions = set(
+            get_mypy_exceptions(
+                self.temp_python_file,
+                self.new_protocols_code(
+                    self.updated_code.replace(
+                        f"Literal['{class_name}']", "None"
+                    )
+                ),
+            )
+        ).difference(previous_exceptions)
         if not exceptions:
             return ANY
         method_compatibility_interfaces = self._get_compatible_interfaces(
@@ -417,10 +427,21 @@ class TypeAddTransformer(ImportVisitingTransformer):
         valid_interface_names = tuple(
             interface for interface, _ in matching_iterfaces
         )
-        matching_iterfaces = tuple(
+        matching_iterfaces = set(
             interface
             for interface, superclasses in matching_iterfaces
             if not any(map(valid_interface_names.__contains__, superclasses))
+        )
+        matching_iterfaces = tuple(
+            matching_iterfaces.union(
+                interface
+                for interface in method_compatibility_interfaces
+                for interface_name, superclasses, _ in (
+                    abc_classes + builtin_types
+                )
+                if interface == interface_name
+                and any(map(superclasses.__contains__, matching_iterfaces))
+            )
         )
         external_lib_entries = get_external_library_classes(
             self.config.external_libraries,
@@ -450,14 +471,15 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     self.temp_python_file,
                     updated_code,
                 )
-            ).difference(exceptions)
+            ).difference(previous_exceptions)
             return not any(
                 re.search(
                     rf"No overload variant of \"[^\"]+\" of \"{interface}\" matches argument",  # noqa: E501
                     exception,
                 )
-                or re.search(" has incompatible type ", exception)
+                or re.search(r" has incompatible type ", exception)
                 or re.search(r" Unsupported operand types for ", exception)
+                or re.search(r" is not indexable ", exception)
                 for exception in new_exceptions
             )
 
@@ -547,8 +569,16 @@ class TypeAddTransformer(ImportVisitingTransformer):
         valid_iterfaces = tuple(filter(is_interface_valid, matching_iterfaces))
         if not valid_iterfaces and matching_iterfaces:
             return ANY
-        valid_iterfaces = self._filter_valid_interfaces(
-            valid_iterfaces, method_compatibility_interfaces
+        valid_iterfaces = tuple(
+            self._filter_valid_interfaces(
+                valid_iterfaces, method_compatibility_interfaces
+            )
+        )
+        valid_iterfaces = frozenset(
+            interface
+            for interface, superclasses, _ in (abc_classes + builtin_types)
+            if interface in valid_iterfaces
+            and not any(map(valid_iterfaces.__contains__, superclasses))
         )
         valid_iterfaces = tuple(map(add_subtypes, valid_iterfaces))
         valid_elements = [
@@ -706,13 +736,12 @@ class TypeAddTransformer(ImportVisitingTransformer):
 
         new_class_code = class_code
         for _ in range(100):
-
             many_args_exceptions = list(
                 map(search, filter(search, exceptions))
             )
             if not any(filter(None, map(get_signature, many_args_exceptions))):
                 return new_class_code
-            for exception in many_args_exceptions:
+            for exception in frozenset(many_args_exceptions):
                 function_name = exception.group(1)
                 function_signature = self._get_function_signature(
                     function_name, class_code
