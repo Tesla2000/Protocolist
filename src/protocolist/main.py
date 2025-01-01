@@ -70,14 +70,15 @@ def protocol(config: Config) -> int:
     )
     remove_star_imports(config)
     fail = any(is_file_modified)
+    str_path = " ".join(
+        f'"{path}"' for path in compress(config.pos_args, is_file_modified)
+    )
     fail |= os.system(
         f"autoflake --in-place --remove-all-unused-imports "
-        f"{' '.join(compress(config.pos_args, is_file_modified))} "
-        f"{config.interfaces_path.absolute()}"
+        f"{str_path} {config.interfaces_path.absolute()}"
     )
     fail |= os.system(
         f"reorder-python-imports "
-        f"{' '.join(compress(config.pos_args, is_file_modified))} "
-        f"{config.interfaces_path.absolute()} --py39-plus"
+        f"{str_path} {config.interfaces_path.absolute()} --py39-plus"
     )
     return fail

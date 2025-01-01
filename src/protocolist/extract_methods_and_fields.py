@@ -28,7 +28,9 @@ def extract_method_names_and_field_names(
         re.findall(r"def ([^\(]+)\([^\)]+\)[^:]*:", method)[0]
         for method in methods
     ).difference(["__init__"])
-    field_names = set(re.findall(r"(\w+)\:", field)[0] for field in fields)
+    field_names = set(
+        re.findall(r"(\w+)\:", field)[0] for field in fields
+    ).union(re.findall(r"self\.(\w+)", code))
     bases = set(bases).difference([protocol_replacement_name])
     classes = class_extractor.get(file_path).classes
     imports = class_extractor.get(file_path).imports

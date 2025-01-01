@@ -44,6 +44,7 @@ class Config(BaseModel):
     protocols_optional_on_builtin: bool = False
     supports_getitem_option: Optional[SupportsGetitemOption] = None
     exclude_memoryview: bool = False
+    tab_lengths: dict = Field(default_factory=dict)
 
     def __init__(self, /, **data: Any):
         data["interfaces_path"] = Path(

@@ -65,18 +65,30 @@ abc_classes = [
     ("Container", [], ["__contains__"]),
     ("Hashable", [], ["__hash__"]),
     ("Iterable", [], ["__iter__"]),
-    ("Iterator", ["Iterable"], ["__next__", "__iter__"]),
+    (
+        "Iterator",
+        ["Iterable"],
+        ["__next__", "__iter__", "SupportsNext", "SupportsIter"],
+    ),
     ("Reversible", ["Iterable"], ["__reversed__"]),
     (
         "Generator",
         ["Iterator", "Iterable"],
-        ["send", "throw", "close", "__iter__", "__next__"],
+        [
+            "send",
+            "throw",
+            "close",
+            "__iter__",
+            "__next__",
+            "SupportsNext",
+            "SupportsIter",
+        ],
     ),
     ("Sized", [], ["__len__"]),
-    ("Callable", [], ["__call__"]),
+    ("Callable", ["IdentityFunction"], ["__call__"]),
     (
         "Collection",
-        ["Sized", "Iterable", "Container"],
+        ["Sized", "Iterable", "Container", "SupportsIter"],
         ["__contains__", "__iter__", "__len__"],
     ),
     (
@@ -88,6 +100,10 @@ abc_classes = [
             "Sized",
             "Iterable",
             "Container",
+            "SupportsIter",
+            "SupportsLenAndGetItem",
+            "SupportsGetItem",
+            "SupportsContainsAndGetItem",
         ],
         [
             "__getitem__",
@@ -109,10 +125,15 @@ abc_classes = [
             "Sized",
             "Iterable",
             "Container",
+            "SupportsLenAndGetItem",
+            "SupportsGetItem",
+            "SupportsContainsAndGetItem",
+            "SupportsItemAccess",
         ],
         [
             "__getitem__",
             "__setitem__",
+            "__contains__",
             "__delitem__",
             "__len__",
             "insert",
@@ -135,12 +156,13 @@ abc_classes = [
             "Sized",
             "Iterable",
             "Container",
+            "SupportsLenAndGetItem",
         ],
         ["__getitem__", "__len__"],
     ),
     (
         "Set",
-        ["Collection", "Sized", "Iterable", "Container"],
+        ["Collection", "Sized", "Iterable", "Container", "SupportsIter"],
         [
             "__contains__",
             "__iter__",
@@ -160,7 +182,14 @@ abc_classes = [
     ),
     (
         "MutableSet",
-        ["Set", "Collection", "Sized", "Iterable", "Container"],
+        [
+            "Set",
+            "Collection",
+            "Sized",
+            "Iterable",
+            "Container",
+            "SupportsIter",
+        ],
         [
             "__contains__",
             "__iter__",
@@ -178,7 +207,18 @@ abc_classes = [
     ),
     (
         "Mapping",
-        ["Collection", "Sized", "Iterable", "Container"],
+        [
+            "Collection",
+            "Sized",
+            "Iterable",
+            "Container",
+            "SupportsIter",
+            "SupportsLenAndGetItem",
+            "SupportsItems",
+            "SupportsKeysAndGetItem",
+            "SupportsGetItem",
+            "SupportsContainsAndGetItem",
+        ],
         [
             "__getitem__",
             "__iter__",
@@ -194,9 +234,21 @@ abc_classes = [
     ),
     (
         "MutableMapping",
-        ["Mapping", "Collection", "Sized", "Iterable", "Container"],
+        [
+            "Mapping",
+            "Collection",
+            "Sized",
+            "Iterable",
+            "Container",
+            "SupportsIter",
+            "SupportsLenAndGetItem",
+            "SupportsGetItem",
+            "SupportsContainsAndGetItem",
+            "SupportsItemAccess",
+        ],
         [
             "__getitem__",
+            "__contains__",
             "__setitem__",
             "__delitem__",
             "__iter__",
@@ -212,7 +264,7 @@ abc_classes = [
 builtin_types = [
     (
         "int",
-        ["Hashable"],
+        ["Hashable", "SupportsTrunc"],
         [
             "__abs__",
             "__add__",
@@ -292,7 +344,7 @@ builtin_types = [
     ),
     (
         "float",
-        ["Hashable"],
+        ["Hashable", "SupportsTrunc"],
         [
             "__abs__",
             "__add__",
@@ -406,7 +458,7 @@ builtin_types = [
     ),
     (
         "bool",
-        ["Hashable", "int"],
+        ["Hashable", "int", "SupportsTrunc"],
         [
             "__abs__",
             "__add__",
@@ -494,6 +546,9 @@ builtin_types = [
             "Container",
             "Sized",
             "Sequence",
+            "SupportsIter",
+            "SupportsGetItem",
+            "SupportsContainsAndGetItem",
         ],
         [
             "__add__",
@@ -589,6 +644,10 @@ builtin_types = [
             "Container",
             "Sized",
             "Sequence",
+            "SupportsIter",
+            "SupportsLenAndGetItem",
+            "SupportsGetItem",
+            "SupportsContainsAndGetItem",
         ],
         [
             "__add__",
@@ -638,6 +697,11 @@ builtin_types = [
             "Container",
             "Sized",
             "Sequence",
+            "SupportsIter",
+            "SupportsLenAndGetItem",
+            "SupportsGetItem",
+            "SupportsContainsAndGetItem",
+            "SupportsItemAccess",
         ],
         [
             "__add__",
@@ -699,6 +763,13 @@ builtin_types = [
             "Container",
             "Sized",
             "Mapping",
+            "SupportsIter",
+            "SupportsLenAndGetItem",
+            "SupportsItems",
+            "SupportsKeysAndGetItem",
+            "SupportsGetItem",
+            "SupportsContainsAndGetItem",
+            "SupportsItemAccess",
         ],
         [
             "__class__",
@@ -751,7 +822,15 @@ builtin_types = [
     ),
     (
         "set",
-        ["Iterable", "Set", "MutableSet", "Collection", "Container", "Sized"],
+        [
+            "Iterable",
+            "Set",
+            "MutableSet",
+            "Collection",
+            "Container",
+            "Sized",
+            "SupportsIter",
+        ],
         [
             "__and__",
             "__class__",
@@ -814,7 +893,15 @@ builtin_types = [
     ),
     (
         "frozenset",
-        ["Hashable", "Iterable", "Set", "Collection", "Container", "Sized"],
+        [
+            "Hashable",
+            "Iterable",
+            "Set",
+            "Collection",
+            "Container",
+            "Sized",
+            "SupportsIter",
+        ],
         [
             "__and__",
             "__class__",
@@ -873,6 +960,10 @@ builtin_types = [
             "Container",
             "Sized",
             "Sequence",
+            "SupportsIter",
+            "SupportsLenAndGetItem",
+            "SupportsGetItem",
+            "SupportsContainsAndGetItem",
         ],
         [
             "__add__",
@@ -966,6 +1057,11 @@ builtin_types = [
             "Container",
             "Sized",
             "Sequence",
+            "SupportsIter",
+            "SupportsLenAndGetItem",
+            "SupportsGetItem",
+            "SupportsContainsAndGetItem",
+            "SupportsItemAccess",
         ],
         [
             "__add__",
@@ -1062,7 +1158,12 @@ builtin_types = [
     ),
     (
         "memoryview",
-        ["Iterable", "Sized"],
+        [
+            "Iterable",
+            "Sized",
+            "SupportsIter",
+            "SupportsLenAndGetItem",
+        ],
         [
             "__buffer__",
             "__class__",
@@ -1127,6 +1228,10 @@ builtin_types = [
             "Container",
             "Sized",
             "Sequence",
+            "SupportsIter",
+            "SupportsLenAndGetItem",
+            "SupportsGetItem",
+            "SupportsContainsAndGetItem",
         ],
         [
             "__bool__",
@@ -1202,7 +1307,7 @@ builtin_types = [
     ),
     (
         "type",
-        ["Callable"],
+        ["Callable", "IdentityFunction"],
         [
             "__abstractmethods__",
             "__annotations__",

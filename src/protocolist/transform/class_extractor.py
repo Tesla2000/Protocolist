@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 from collections import OrderedDict
+from contextlib import suppress
 from pathlib import Path
 from typing import Optional
 
 import libcst
 from libcst import ClassDef
 from libcst import Module
+from libcst import ParserSyntaxError
 
 from ..config import Config
 from ..consts import protocol_replacement_name
@@ -50,10 +52,14 @@ class ClassExtractor(ImportVisitingTransformer):
         self._update_internal_classes(node)
         return super().visit_ClassDef(node)
 
-    def extract_classes(self, code) -> dict[str, str]:
-        module = libcst.parse_module(
-            code.replace(self.config.tab_length * " ", "\t")
-        )
+    def extract_classes(self, code: str) -> dict[str, str]:
+        for tab_length in (4, 2, 8):
+            with suppress(ParserSyntaxError):
+                self.config.tab_length = tab_length
+                module = libcst.parse_module(
+                    code.replace(self.config.tab_length * " ", "\t")
+                )
+                break
         module.visit(self)
         return self.classes
 
@@ -92,4 +98,5 @@ class GlobalClassExtractor:
             self.config, create_type_marker(self.config)
         )
         self.extractors[path].extract_classes(path.read_text())
+        self.config.tab_lengths[path] = self.config.tab_length
         return self.extractors[path]
