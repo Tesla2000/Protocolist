@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+import os
 import typing
 from pathlib import Path
 
@@ -64,9 +65,19 @@ def create_protocols(
             )
             .union(
                 set(
+                    f"from os import {annotation}\n"
+                    for annotation in annotations
+                    if annotation
+                    in set(dir(os))
+                    .difference(dir(typing))
+                    .difference(dir(collections.abc))
+                )
+            )
+            .union(
+                set(
                     f"from {module_name} import {item_name}\n"
                     for item_name, module_name in external_imports.items()
-                    if module_name not in ("typing", "collections.abc")
+                    if module_name not in ("typing", "collections.abc", "os")
                 )
             )
         )
