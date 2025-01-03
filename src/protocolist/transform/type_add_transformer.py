@@ -34,6 +34,7 @@ from ..consts import exception2method
 from ..consts import existing_types
 from ..consts import hint_translations
 from ..consts import import_statement
+from ..consts import open_compatible
 from ..consts import protocol_replacement_name
 from ..consts import types_parametrized_with_one_parameter
 from ..consts import types_parametrized_with_two_parameters
@@ -394,6 +395,16 @@ class TypeAddTransformer(ImportVisitingTransformer):
             [r"has incompatible type \"None\"; expected \"([^\"]+)\""],
             exceptions,
         )[0]
+        method_compatibility_interfaces.update(
+            open_compatible
+            if self._get_compatible_interfaces(
+                [
+                    r"No overload variant of \"open\" matches argument types \"None\", (\"str\")"  # noqa: E501
+                ],
+                exceptions,
+            )[0]
+            else tuple()
+        )
         methods = tuple(
             frozenset(
                 method.split("(")[0]

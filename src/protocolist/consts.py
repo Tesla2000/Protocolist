@@ -1575,3 +1575,4 @@ hint_translations = {
     "Iterable[Never]": "Iterable",
     "filter[Any]": "filter",
 }
+open_compatible = ["int", "str", "bytes", "PathLike[str]", "PathLike[bytes]"]
