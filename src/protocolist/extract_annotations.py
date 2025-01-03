@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import collections
+import os
 import typing
 from collections.abc import Collection
 from collections.abc import Mapping
@@ -37,6 +38,7 @@ def extract_annotations(
             annotation in protocols
             or annotation in dir(typing)
             or annotation in dir(collections.abc)
+            or annotation in dir(os)
         )
     )
 
