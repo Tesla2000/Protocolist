@@ -411,12 +411,15 @@ class TypeAddTransformer(ImportVisitingTransformer):
         )
         method_compatibility_interfaces.update(
             ["SupportsIndex"]
-            if self._get_compatible_interfaces(
-                [
-                    r"No overload variant of \"range\" matches argument types (\"int\"), \"None\"",  # noqa: E501
-                ],
-                exceptions,
-            )[0]
+            if any(
+                self._get_compatible_interfaces(
+                    [
+                        r"No overload variant of \"range\" matches argument types (\"int\"), \"None\"",  # noqa: E501
+                        r"No overload variant of \"range\" matches argument type (\"None\")",  # noqa: E501
+                    ],
+                    exceptions,
+                )
+            )
             else tuple()
         )
         methods = tuple(
