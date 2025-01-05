@@ -110,7 +110,8 @@ class TypeAddTransformer(ImportVisitingTransformer):
             import_statement
             + self._translate_code(
                 self.filepath.read_text(), original_code.rstrip(), ""
-            )
+            ).removesuffix("\n")
+            + "\n"
             + updated_function_code
         )
         for _ in range(20):
@@ -397,9 +398,22 @@ class TypeAddTransformer(ImportVisitingTransformer):
         )[0]
         method_compatibility_interfaces.update(
             open_compatible
+            if any(
+                self._get_compatible_interfaces(
+                    [
+                        r"No overload variant of \"open\" matches argument types \"None\", (\"str\")",  # noqa: E501
+                        r"No overload variant of \"open\" matches argument type (\"None\")",  # noqa: E501
+                    ],
+                    exceptions,
+                )
+            )
+            else tuple()
+        )
+        method_compatibility_interfaces.update(
+            ["SupportsIndex"]
             if self._get_compatible_interfaces(
                 [
-                    r"No overload variant of \"open\" matches argument types \"None\", (\"str\")"  # noqa: E501
+                    r"No overload variant of \"range\" matches argument types (\"int\"), \"None\"",  # noqa: E501
                 ],
                 exceptions,
             )[0]
@@ -627,7 +641,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                     to_camelcase(class_name)
                 )
             )}]"
-        if len(valid_elements) > 2:
+        if len(valid_elements) >= 2:
             return f"Union[{', '.join(valid_elements)}]"
         return valid_elements[0]
 

@@ -264,7 +264,7 @@ abc_classes = [
 builtin_types = [
     (
         "int",
-        ["Hashable", "SupportsTrunc"],
+        ["Hashable", "SupportsTrunc", "SupportsIndex"],
         [
             "__abs__",
             "__add__",
@@ -458,7 +458,7 @@ builtin_types = [
     ),
     (
         "bool",
-        ["Hashable", "int", "SupportsTrunc"],
+        ["Hashable", "int", "SupportsTrunc", "SupportsIndex"],
         [
             "__abs__",
             "__add__",
