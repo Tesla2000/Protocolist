@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Collection
+from collections.abc import Iterable
 from collections.abc import Sequence
 from pathlib import Path
 from typing import NamedTuple
@@ -15,8 +17,8 @@ class _ImportLink(NamedTuple):
 
 def link_files_by_imports(
     paths: Sequence[Path], global_class_extractor: GlobalClassExtractor
-) -> list[Path]:
-    import_links = tuple(
+) -> Sequence[_ImportLink]:
+    return tuple(
         _ImportLink(import_path, path)
         for path, extractor in zip(
             paths, map(global_class_extractor.get, paths)
@@ -33,6 +35,11 @@ def link_files_by_imports(
         )
         if import_path.exists() and import_path in paths
     )
+
+
+def sort_paths_by_import_links(
+    paths: Iterable[Path], import_links: Collection[_ImportLink]
+) -> list[Path]:
     paths_in_order = []
     paths = list(paths)
     while paths:

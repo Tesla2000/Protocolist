@@ -57,6 +57,33 @@ from ..transform.import_visiting_transformer import (
     ImportVisitingTransformer,
 )
 from ..transform.prototype_applier import PrototypeApplier
+from ..utils.lock import lock
+
+
+# task_queue = queue.Queue()
+#
+# def add_task_and_wait(task):
+#     completion_event = threading.Event()
+#     def wrapped_task():
+#         try:
+#             task()
+#         finally:
+#             completion_event.set()
+#     task_queue.put(wrapped_task)
+#     completion_event.wait()
+#
+# def process_tasks():
+#     while True:
+#         task = task_queue.get()
+#         try:
+#             task()
+#         except Exception as e:
+#             print(f"Error while executing task: {e}")
+#         finally:
+#             task_queue.task_done()
+#
+# worker_thread = threading.Thread(target=process_tasks, daemon=True)
+# worker_thread.start()
 
 
 class TypeAddTransformer(ImportVisitingTransformer):
@@ -66,7 +93,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
     def __init__(
         self,
         config: Config,
-        protocol: ProtocolDict,
+        protocol: dict,
         types_marker: TypeMarker,
         class_extractor: GlobalClassExtractor,
         filepath: Path,
@@ -116,7 +143,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         )
         for _ in range(20):
             protocol_items = tuple(self.protocols.items())
-            for protocol in self.protocols.get_protocols():
+            for protocol in ProtocolDict.get_protocols(self.protocols):
                 literal = f"Literal['{protocol}']"
                 if literal not in self.updated_code:
                     continue
@@ -135,10 +162,11 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 break
         else:
             raise ValueError
-        self._save_protocols()
-        result = self._update_parameters(updated_node)
-        self._function_translations[original_code] = Module([result]).code
-        return result
+        with lock:
+            self._save_protocols()
+            result = self._update_parameters(updated_node)
+            self._function_translations[original_code] = Module([result]).code
+            return result
 
     def _translate_code(self, code: str, original: str, updated: str):
         for key, value in sorted(
@@ -348,7 +376,8 @@ class TypeAddTransformer(ImportVisitingTransformer):
         types = tuple(
             type
             for type in types
-            if type != ANY and type not in self.protocols.get_protocols()
+            if type != ANY
+            and type not in ProtocolDict.get_protocols(self.protocols)
         )
         if not types:
             return ANY
@@ -709,7 +738,11 @@ class TypeAddTransformer(ImportVisitingTransformer):
     def _create_protocol(self, class_name: str, attr_fields: Iterable[str]):
         attr_fields = set(attr_fields)
         for attr_field in attr_fields:
-            self.protocols[to_camelcase(attr_field)] += 1
+            camel_case_name = to_camelcase(attr_field)
+            with lock:
+                self.protocols[camel_case_name] = (
+                    self.protocols.get(camel_case_name, 0) + 1
+                )
 
         def create_field(attr_field: str) -> str:
             if attr_field in dunder_methods:
