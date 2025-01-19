@@ -10,11 +10,11 @@ from .add_inheritance import add_inheritance
 from .config import Config
 from .config import create_config_with_args
 from .config import parse_arguments
+from .link_files_by_imports import link_files_by_imports
 from .presentation_option.protocol_saver_factory import create_protocol_saver
 from .protocol_dict import ProtocolDict
 from .protocol_markers.types_marker_factory import create_type_marker
 from .remove_star_imports import remove_star_imports
-from .sort_files_by_import_order import sort_files_by_import_order
 from .transaction import transation
 from .transform.class_extractor import ClassExtractor
 from .transform.class_extractor import GlobalClassExtractor
@@ -33,7 +33,7 @@ def protocol(config: Config) -> int:
         filter(lambda path: path.suffix == ".py", map(Path, config.pos_args))
     )
     global_class_extractor = GlobalClassExtractor(config)
-    paths = sort_files_by_import_order(paths, global_class_extractor)
+    paths = link_files_by_imports(paths, global_class_extractor)
     classes = ClassExtractor(
         config, create_type_marker(config)
     ).extract_classes(config.interfaces_path.read_text())

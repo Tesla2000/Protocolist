@@ -13,7 +13,7 @@ class _ImportLink(NamedTuple):
     to_import: Path
 
 
-def sort_files_by_import_order(
+def link_files_by_imports(
     paths: Sequence[Path], global_class_extractor: GlobalClassExtractor
 ) -> list[Path]:
     import_links = tuple(

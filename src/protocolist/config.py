@@ -39,6 +39,7 @@ class Config(BaseModel):
     external_libraries: Optional[Iterable[str]] = tuple()
     excluded_libraries: Iterable[str] = tuple()
     tab_length: int = 4
+    n_workers: int = 4
     keep_hints: bool = True
     max_hint_length: int = sys.maxsize
     protocols_optional_on_builtin: bool = False

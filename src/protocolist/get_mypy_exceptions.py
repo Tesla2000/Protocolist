@@ -1,14 +1,19 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
+from uuid import uuid4
 
 import mypy.api
 
 
 def get_mypy_exceptions(
-    temp_python_file: Path, updated_code: str, strict: bool = True
+    mypy_folder: Path, updated_code: str, strict: bool = True
 ) -> list[str]:
-    temp_python_file.write_text(updated_code)
-    return mypy.api.run(
-        [str(temp_python_file)] + ["--strict"] if strict else []
-    )[0].splitlines()[:-1]
+    file_path = mypy_folder.joinpath(str(uuid4())).with_suffix(".py")
+    file_path.write_text(updated_code)
+    result = mypy.api.run([str(file_path)] + ["--strict"] if strict else [])[
+        0
+    ].splitlines()[:-1]
+    os.remove(file_path)
+    return result

@@ -77,7 +77,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         self.config = config
         self.protocols = protocol
         self.filepath = filepath
-        self.temp_python_file = self.config.mypy_folder / "_temp.py"
+        self.temp_python_file = self.config.mypy_folder
         self.annotations = {}
         self.imports = set()
         self.full_annotation_to_new = {}
@@ -594,20 +594,33 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 for entry in valid_external_lib_entries
             )
         )
-        valid_iterfaces = tuple(filter(is_interface_valid, matching_iterfaces))
-        if not valid_iterfaces and matching_iterfaces:
-            return ANY
-        valid_iterfaces = tuple(
+        matching_iterfaces = list(
             self._filter_valid_interfaces(
-                valid_iterfaces, method_compatibility_interfaces
+                matching_iterfaces, method_compatibility_interfaces
             )
         )
-        valid_iterfaces = frozenset(
-            interface
-            for interface, superclasses, _ in (abc_classes + builtin_types)
-            if interface in valid_iterfaces
-            and not any(map(valid_iterfaces.__contains__, superclasses))
-        )
+        valid_iterfaces = []
+        while matching_iterfaces:
+            for interface in frozenset(
+                interface
+                for interface, superclasses, _ in (abc_classes + builtin_types)
+                if interface in matching_iterfaces
+                and not any(map(matching_iterfaces.__contains__, superclasses))
+            ):
+                if is_interface_valid(interface):
+                    valid_iterfaces.append(interface)
+                    for removed_interface in frozenset(
+                        interface
+                        for interface, superclasses, _ in (
+                            abc_classes + builtin_types
+                        )
+                        if interface in matching_iterfaces
+                        and interface in superclasses
+                    ):
+                        matching_iterfaces.remove(removed_interface)
+                matching_iterfaces.remove(interface)
+        if not valid_iterfaces and matching_iterfaces:
+            return ANY
         valid_iterfaces = tuple(map(add_subtypes, valid_iterfaces))
         valid_elements = [
             *tuple(sorted(map(_add_collections, valid_iterfaces))),
