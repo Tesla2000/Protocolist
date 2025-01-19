@@ -57,6 +57,33 @@ from ..transform.import_visiting_transformer import (
     ImportVisitingTransformer,
 )
 from ..transform.prototype_applier import PrototypeApplier
+from ..utils.lock import lock
+
+
+# task_queue = queue.Queue()
+#
+# def add_task_and_wait(task):
+#     completion_event = threading.Event()
+#     def wrapped_task():
+#         try:
+#             task()
+#         finally:
+#             completion_event.set()
+#     task_queue.put(wrapped_task)
+#     completion_event.wait()
+#
+# def process_tasks():
+#     while True:
+#         task = task_queue.get()
+#         try:
+#             task()
+#         except Exception as e:
+#             print(f"Error while executing task: {e}")
+#         finally:
+#             task_queue.task_done()
+#
+# worker_thread = threading.Thread(target=process_tasks, daemon=True)
+# worker_thread.start()
 
 
 class TypeAddTransformer(ImportVisitingTransformer):
@@ -66,7 +93,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
     def __init__(
         self,
         config: Config,
-        protocol: ProtocolDict,
+        protocol: dict,
         types_marker: TypeMarker,
         class_extractor: GlobalClassExtractor,
         filepath: Path,
@@ -77,7 +104,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         self.config = config
         self.protocols = protocol
         self.filepath = filepath
-        self.temp_python_file = self.config.mypy_folder / "_temp.py"
+        self.temp_python_file = self.config.mypy_folder
         self.annotations = {}
         self.imports = set()
         self.full_annotation_to_new = {}
@@ -116,7 +143,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         )
         for _ in range(20):
             protocol_items = tuple(self.protocols.items())
-            for protocol in self.protocols.get_protocols():
+            for protocol in ProtocolDict.get_protocols(self.protocols):
                 literal = f"Literal['{protocol}']"
                 if literal not in self.updated_code:
                     continue
@@ -135,10 +162,11 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 break
         else:
             raise ValueError
-        self._save_protocols()
-        result = self._update_parameters(updated_node)
-        self._function_translations[original_code] = Module([result]).code
-        return result
+        with lock:
+            self._save_protocols()
+            result = self._update_parameters(updated_node)
+            self._function_translations[original_code] = Module([result]).code
+            return result
 
     def _translate_code(self, code: str, original: str, updated: str):
         for key, value in sorted(
@@ -348,7 +376,8 @@ class TypeAddTransformer(ImportVisitingTransformer):
         types = tuple(
             type
             for type in types
-            if type != ANY and type not in self.protocols.get_protocols()
+            if type != ANY
+            and type not in ProtocolDict.get_protocols(self.protocols)
         )
         if not types:
             return ANY
@@ -594,20 +623,33 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 for entry in valid_external_lib_entries
             )
         )
-        valid_iterfaces = tuple(filter(is_interface_valid, matching_iterfaces))
-        if not valid_iterfaces and matching_iterfaces:
-            return ANY
-        valid_iterfaces = tuple(
+        matching_iterfaces = list(
             self._filter_valid_interfaces(
-                valid_iterfaces, method_compatibility_interfaces
+                matching_iterfaces, method_compatibility_interfaces
             )
         )
-        valid_iterfaces = frozenset(
-            interface
-            for interface, superclasses, _ in (abc_classes + builtin_types)
-            if interface in valid_iterfaces
-            and not any(map(valid_iterfaces.__contains__, superclasses))
-        )
+        valid_iterfaces = []
+        while matching_iterfaces:
+            for interface in frozenset(
+                interface
+                for interface, superclasses, _ in (abc_classes + builtin_types)
+                if interface in matching_iterfaces
+                and not any(map(matching_iterfaces.__contains__, superclasses))
+            ):
+                if is_interface_valid(interface):
+                    valid_iterfaces.append(interface)
+                    for removed_interface in frozenset(
+                        interface
+                        for interface, superclasses, _ in (
+                            abc_classes + builtin_types
+                        )
+                        if interface in matching_iterfaces
+                        and interface in superclasses
+                    ):
+                        matching_iterfaces.remove(removed_interface)
+                matching_iterfaces.remove(interface)
+        if not valid_iterfaces and matching_iterfaces:
+            return ANY
         valid_iterfaces = tuple(map(add_subtypes, valid_iterfaces))
         valid_elements = [
             *tuple(sorted(map(_add_collections, valid_iterfaces))),
@@ -696,7 +738,11 @@ class TypeAddTransformer(ImportVisitingTransformer):
     def _create_protocol(self, class_name: str, attr_fields: Iterable[str]):
         attr_fields = set(attr_fields)
         for attr_field in attr_fields:
-            self.protocols[to_camelcase(attr_field)] += 1
+            camel_case_name = to_camelcase(attr_field)
+            with lock:
+                self.protocols[camel_case_name] = (
+                    self.protocols.get(camel_case_name, 0) + 1
+                )
 
         def create_field(attr_field: str) -> str:
             if attr_field in dunder_methods:

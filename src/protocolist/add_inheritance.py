@@ -131,9 +131,7 @@ def add_inheritance(
             f"{'\n'.join(applicable_interfaces.values())}\n"
             f"{updated_file_content}\n{class_name}()",
         )
-        exceptions = get_mypy_exceptions(
-            config.mypy_folder / "_temp.py", inheritance_code
-        )
+        exceptions = get_mypy_exceptions(config.mypy_folder, inheritance_code)
         if any(
             map(
                 re.compile(

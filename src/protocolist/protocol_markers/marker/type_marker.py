@@ -26,6 +26,7 @@ from ...config import Config
 from ...protocol_dict import ProtocolDict
 from ...protocol_markers.mark_options import MarkOption
 from ...to_camelcase import to_camelcase
+from ...utils.lock import lock
 
 
 class TypeMarker(ABC):
@@ -50,7 +51,8 @@ class TypeMarker(ABC):
         param_name = to_camelcase(updated_node.name.value)
         if param_name.lower() in "self" or updated_node.star:
             return
-        protocols[param_name] += 1
+        with lock:
+            protocols[param_name] = protocols.get(param_name, 0) + 1
         numeric_param_name = param_name + str(protocols[param_name])
         annotations[numeric_param_name] = None
         if self.config.keep_hints:
