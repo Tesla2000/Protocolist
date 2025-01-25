@@ -4,6 +4,11 @@ from typing import runtime_checkable
 from typing import Union
 
 @runtime_checkable
+class Arg(ProtocolistProtocol):
+	
+	def __add__(self, other):
+		...
+@runtime_checkable
 class Content(ProtocolistProtocol):
 	content: Union["Content", Collection[Union["ContentSubscript", str]], memoryview]
 	string: Union["ContentSubscript", str]

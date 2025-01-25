@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 import sys
-from collections.abc import Iterable
+from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 from typing import Optional
@@ -36,13 +36,13 @@ class Config(BaseModel):
     protocol_presentation: PresentationOption = (
         PresentationOption.COMBINED_PROTOCOLS
     )
-    external_libraries: Optional[Iterable[str]] = tuple()
-    excluded_libraries: Iterable[str] = tuple()
+    external_libraries: Optional[Sequence[str]] = ("io",)
+    excluded_libraries: Sequence[str] = tuple()
     tab_length: int = 4
     n_workers: int = 1
     keep_hints: bool = True
     max_hint_length: int = sys.maxsize
-    protocols_optional_on_builtin: bool = False
+    add_protocols_on_builtin: bool = False
     supports_getitem_option: Optional[SupportsGetitemOption] = None
     exclude_memoryview: bool = False
     tab_lengths: dict = Field(default_factory=dict)

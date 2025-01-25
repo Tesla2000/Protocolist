@@ -31,6 +31,7 @@ class TestCombinedMultiprocess(Test):
                 )
             ),
             interfaces_path=str(self.protocols_path),
+            add_protocols_on_builtin=True,
             mark_option=MarkOption.ALL,
             protocol_presentation=PresentationOption.COMBINED_PROTOCOLS,
             n_workers=4,

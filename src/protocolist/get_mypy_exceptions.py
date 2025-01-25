@@ -13,8 +13,11 @@ def get_mypy_exceptions(
     file_path = mypy_folder.joinpath(str(uuid4())).with_suffix(".py")
     file_path.write_text(updated_code)
     try:
-        return mypy.api.run([str(file_path)] + ["--strict"] if strict else [])[
-            0
-        ].splitlines()[:-1]
+        return list(
+            line.partition(":")[-1]
+            for line in mypy.api.run(
+                [str(file_path)] + ["--strict"] if strict else []
+            )[0].splitlines()[:-1]
+        )
     finally:
         os.remove(file_path)

@@ -3,6 +3,10 @@ from typing import Protocol as ProtocolistProtocol
 from typing import runtime_checkable
 from typing import Union
 @runtime_checkable
+class Arg01(ProtocolistProtocol):
+	def __add__(self, other):
+		...
+@runtime_checkable
 class Content2(ProtocolistProtocol):
 	def __iter__(self):
 		...

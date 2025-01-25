@@ -19,7 +19,7 @@ def link_files_by_imports(
     paths: Sequence[Path], global_class_extractor: GlobalClassExtractor
 ) -> Sequence[_ImportLink]:
     return tuple(
-        _ImportLink(import_path, path)
+        _ImportLink(import_path.absolute(), path.absolute())
         for path, extractor in zip(
             paths, map(global_class_extractor.get, paths)
         )
@@ -33,7 +33,8 @@ def link_files_by_imports(
                 extractor.imports.keys(),
             ),
         )
-        if import_path.exists() and import_path in paths
+        if import_path.exists()
+        and (import_path in paths or import_path.absolute() in paths)
     )
 
 
@@ -43,7 +44,7 @@ def sort_paths_by_import_links(
     paths_in_order = []
     paths = list(paths)
     while paths:
-        for path in tuple(paths):
+        for path in tuple(map(Path.absolute, paths)):
             if path not in tuple(link.to_import for link in import_links):
                 paths_in_order.append(path)
                 import_links = tuple(

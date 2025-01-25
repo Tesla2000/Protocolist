@@ -32,6 +32,5 @@ class TestSupportsGetitemOption(TestBase):
             mark_option=MarkOption.ALL,
             protocol_presentation=PresentationOption.PARTIAL_PROTOCOLS,
             supports_getitem_option=SupportsGetitemOption.SEQUENCE,
-            protocols_optional_on_builtin=True,
         )
         self._test(after, config)

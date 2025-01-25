@@ -11,14 +11,13 @@ from protocolist.protocol_markers.mark_options import MarkOption
 from tests.test_base import TestBase
 
 
-class TestRecursiveType(TestBase):
+class TestFile(TestBase):
     def setUp(self):
-        self.base = Path("tests/file_sets/recursive_type")
-        self.before = self.base / Path("before_update")
+        self.before = Path("tests/file_sets/file/before_update")
         super().setUp()
 
     def test(self):
-        after = self.base / Path("after_update")
+        after = Path("tests/file_sets/file/after_update")
         config = Config(
             pos_args=tuple(
                 map(
@@ -27,7 +26,6 @@ class TestRecursiveType(TestBase):
                 )
             ),
             interfaces_path=str(self.protocols_path),
-            add_protocols_on_builtin=True,
             mark_option=MarkOption.ALL,
             protocol_presentation=PresentationOption.PARTIAL_PROTOCOLS,
         )

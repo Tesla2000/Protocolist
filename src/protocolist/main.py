@@ -35,7 +35,12 @@ def main() -> int:
 
 def protocol(config: Config) -> int:
     paths = tuple(
-        filter(lambda path: path.suffix == ".py", map(Path, config.pos_args))
+        map(
+            Path.absolute,
+            filter(
+                lambda path: path.suffix == ".py", map(Path, config.pos_args)
+            ),
+        )
     )
     global_class_extractor = GlobalClassExtractor(config)
     import_links = link_files_by_imports(paths, global_class_extractor)
@@ -91,6 +96,7 @@ def protocol(config: Config) -> int:
                             class_extractor=global_class_extractor,
                         ),
                         callback=task_done_callback,
+                        error_callback=error_callback,
                     )
                 pool.close()
                 pool.join()
@@ -116,6 +122,7 @@ def protocol(config: Config) -> int:
                         class_extractor=global_class_extractor,
                     ),
                     callback=task_done_callback,
+                    error_callback=error_callback,
                 )
             pool.close()
             pool.join()
@@ -142,7 +149,7 @@ def protocol(config: Config) -> int:
     remove_star_imports(config)
     fail = any(is_file_modified)
     str_path = " ".join(
-        f'"{path}"' for path in compress(config.pos_args, is_file_modified)
+        f'"{path}"' for path in compress(paths, is_file_modified)
     )
     fail |= os.system(
         f"autoflake --in-place --remove-all-unused-imports "
@@ -153,3 +160,7 @@ def protocol(config: Config) -> int:
         f"{str_path} {config.interfaces_path.absolute()} --py39-plus"
     )
     return fail
+
+
+def error_callback(e: Exception):
+    raise e

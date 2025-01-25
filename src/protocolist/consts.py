@@ -2,6 +2,17 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from functools import reduce
+from io import BufferedIOBase
+from io import BufferedRandom
+from io import BufferedReader
+from io import BufferedRWPair
+from io import BufferedWriter
+from io import BytesIO
+from io import FileIO
+from io import RawIOBase
+from io import StringIO
+from io import TextIOBase
+from io import TextIOWrapper
 from operator import itemgetter
 from typing import NamedTuple
 
@@ -16,6 +27,7 @@ ANY = "Any"
 exception2method = dict(
     zip(
         (
+            r"No overload variant of \"__getitem__\" of \"list\" matches argument type \"None\"",  # noqa: E501
             r"Unsupported target for indexed assignment \(\"None\"\)\s+\[index\]",  # noqa: E501
             r"Value of type \"None\" is not indexable",
             r"has incompatible type \"None\"; expected \"Sized\"",
@@ -24,20 +36,28 @@ exception2method = dict(
             r'No overload variant of "next" matches argument type "(?!Literal\[)[^"]+"',  # noqa: E501
             r'Unsupported operand types for \+ \("None" and "[^\"]+"\)',
             r'Unsupported operand types for \+ \("[^\"]+" and "None"\)',
+            r'Unsupported \w+ operand type for \+ \("None"\)',
             r'Unsupported operand types for - \("None" and "[^\"]+"\)',
             r'Unsupported operand types for - \("[^\"]+" and "None"\)',
+            r'Unsupported \w+ operand type for - \("None"\)',
             r'Unsupported operand types for \* \("None" and "[^\"]+"\)',
             r'Unsupported operand types for \* \("[^\"]+" and "None"\)',
+            r'Unsupported \w+ operand type for \* \("None"\)',
             r'Unsupported operand types for \*\* \("None" and "[^\"]+"\)',
             r'Unsupported operand types for \*\* \("[^\"]+" and "None"\)',
+            r'Unsupported \w+ operand type for \*\* \("None"\)',
             r'Unsupported operand types for % \("None" and "[^\"]+"\)',
             r'Unsupported operand types for % \("[^\"]+" and "None"\)',
+            r'Unsupported \w+ operand type for % \("None"\)',
             r'Unsupported operand types for / \("None" and "[^\"]+"\)',
             r'Unsupported operand types for / \("[^\"]+" and "None"\)',
+            r'Unsupported \w+ operand type for / \("None"\)',
             r'Unsupported operand types for // \("None" and "[^\"]+"\)',
             r'Unsupported operand types for // \("[^\"]+" and "None"\)',
+            r'Unsupported \w+ operand type for // \("None"\)',
         ),
         (
+            "__index__(self)",
             "__setitem__(self, index, value)",
             "__getitem__(self, index)",
             "__len__(self)",
@@ -46,16 +66,23 @@ exception2method = dict(
             "__next__(self)",
             "__add__(self, other)",
             "__add__(self, other)",
+            "__add__(self, other)",
+            "__sub__(self, other)",
             "__sub__(self, other)",
             "__sub__(self, other)",
             "__mul__(self, other)",
             "__mul__(self, other)",
+            "__mul__(self, other)",
+            "__pow__(self, exponent, modulus=None)",
             "__pow__(self, exponent, modulus=None)",
             "__pow__(self, exponent, modulus=None)",
             "__divmod__(self, other)",
             "__divmod__(self, other)",
+            "__divmod__(self, other)",
             "__truediv__(self, other)",
             "__truediv__(self, other)",
+            "__truediv__(self, other)",
+            "__floordiv__(self, other)",
             "__floordiv__(self, other)",
             "__floordiv__(self, other)",
         ),
@@ -1569,6 +1596,22 @@ class _GroupedTypes(NamedTuple):
 
 grouped_types = [
     _GroupedTypes("CharSequence", (str, bytes, bytearray)),
+    _GroupedTypes(
+        "IOClass",
+        (
+            BufferedIOBase,
+            BufferedRWPair,
+            BufferedRandom,
+            BufferedReader,
+            BufferedWriter,
+            BytesIO,
+            FileIO,
+            RawIOBase,
+            StringIO,
+            TextIOBase,
+            TextIOWrapper,
+        ),
+    ),
 ]
 hint_translations = {
     "list[Never]": "list",

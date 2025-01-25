@@ -4,6 +4,7 @@ from collections.abc import Collection
 from collections.abc import Iterator
 from typing import Union
 
+from tests.file_sets.general_set.before_update.protocols import Arg01
 from tests.file_sets.general_set.before_update.protocols import Content1
 from tests.file_sets.general_set.before_update.protocols import Content2
 from tests.file_sets.general_set.before_update.protocols import Content2Subscript
@@ -13,11 +14,11 @@ from tests.file_sets.general_set.before_update.protocols import Message2SecondSu
 from tests.file_sets.general_set.before_update.protocols import Role1
 
 
-class Content(str, Content2Subscript, Message2SecondSubscript, Content2, Message2):
+class Content(str, Content2Subscript, Message2SecondSubscript, Arg01, Content2, Message2):
     content: Collection[str]
 
 
-class Role(str, Content2Subscript, Message2SecondSubscript, Content2, Role1, Message2):
+class Role(str, Content2Subscript, Message2SecondSubscript, Arg01, Content2, Role1, Message2):
     def __len__(self) -> int:
         return 1
 
@@ -47,7 +48,7 @@ class MessageContent(Content1):
 
 class Message(Message1):
     def some_method(
-        self, arg0: str, arg1: Union[int, str], string: Union[list, str]
+        self, arg0: Union[Arg01, str], arg1: Union[int, str], string: Union[list, str]
     ) -> str:
         return arg0 + str(arg1) + str(string)
 

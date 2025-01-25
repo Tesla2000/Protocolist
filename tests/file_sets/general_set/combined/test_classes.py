@@ -4,16 +4,17 @@ from collections.abc import Collection
 from collections.abc import Iterator
 from typing import Union
 
+from tests.file_sets.general_set.before_update.protocols import Arg
 from tests.file_sets.general_set.before_update.protocols import ContentSubscript
 from tests.file_sets.general_set.before_update.protocols import MessageSecondSubscript
 from tests.file_sets.general_set.before_update.protocols import Role as Role_
 
 
-class Content(str, ContentSubscript, MessageSecondSubscript):
+class Content(str, Arg, ContentSubscript, MessageSecondSubscript):
     content: Collection[str]
 
 
-class Role(str, ContentSubscript, MessageSecondSubscript, Role_):
+class Role(str, Arg, ContentSubscript, MessageSecondSubscript, Role_):
     def __len__(self) -> int:
         return 1
 
@@ -43,7 +44,7 @@ class MessageContent:
 
 class Message:
     def some_method(
-        self, arg0: str, arg1: Union[int, str], string: Union[list, str]
+        self, arg0: Union[Arg, str], arg1: Union[int, str], string: Union[list, str]
     ) -> str:
         return arg0 + str(arg1) + str(string)
 

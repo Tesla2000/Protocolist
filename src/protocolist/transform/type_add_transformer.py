@@ -60,32 +60,6 @@ from ..transform.prototype_applier import PrototypeApplier
 from ..utils.lock import lock
 
 
-# task_queue = queue.Queue()
-#
-# def add_task_and_wait(task):
-#     completion_event = threading.Event()
-#     def wrapped_task():
-#         try:
-#             task()
-#         finally:
-#             completion_event.set()
-#     task_queue.put(wrapped_task)
-#     completion_event.wait()
-#
-# def process_tasks():
-#     while True:
-#         task = task_queue.get()
-#         try:
-#             task()
-#         except Exception as e:
-#             print(f"Error while executing task: {e}")
-#         finally:
-#             task_queue.task_done()
-#
-# worker_thread = threading.Thread(target=process_tasks, daemon=True)
-# worker_thread.start()
-
-
 class TypeAddTransformer(ImportVisitingTransformer):
     updated_code: str
     annotations: dict[str, Optional[str]]
@@ -421,6 +395,20 @@ class TypeAddTransformer(ImportVisitingTransformer):
         ).difference(previous_exceptions)
         if not exceptions:
             return ANY
+        literal = next(
+            chain.from_iterable(
+                re.findall(
+                    r"Argument 2 to \"[^\"]+\" of \"[^\"]+\" has "
+                    r"incompatible type \"None\"; "
+                    r"expected \"(Literal\[[^\]]+\])",
+                    exception,
+                )
+                for exception in exceptions
+            ),
+            None,
+        )
+        if literal:
+            return literal
         method_compatibility_interfaces = self._get_compatible_interfaces(
             [r"has incompatible type \"None\"; expected \"([^\"]+)\""],
             exceptions,
@@ -431,7 +419,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
                 self._get_compatible_interfaces(
                     [
                         r"No overload variant of \"open\" matches argument types \"None\", (\"str\")",  # noqa: E501
-                        r"No overload variant of \"open\" matches argument type (\"None\")",  # noqa: E501
+                        r"No overload variant of \"open\" matches argument types* (\"None\")",  # noqa: E501
                     ],
                     exceptions,
                 )
@@ -439,12 +427,26 @@ class TypeAddTransformer(ImportVisitingTransformer):
             else tuple()
         )
         method_compatibility_interfaces.update(
-            ["SupportsIndex"]
+            ["int", "float", "complex"]
             if any(
                 self._get_compatible_interfaces(
                     [
+                        r"No overload variant of \"pow\" matches argument types* (\"None\")",  # noqa: E501
+                        r"No overload variant of \"pow\" matches argument types* \"[^\"]+\", (\"None\")",  # noqa: E501
+                    ],
+                    exceptions,
+                )
+            )
+            else tuple()
+        )
+        method_compatibility_interfaces.update(
+            ["int", "bool"]
+            if any(
+                self._get_compatible_interfaces(
+                    [
+                        r"No overload variant of \"range\" matches argument types (\"int\"), (\"int\"), \"None\"",  # noqa: E501
                         r"No overload variant of \"range\" matches argument types (\"int\"), \"None\"",  # noqa: E501
-                        r"No overload variant of \"range\" matches argument type (\"None\")",  # noqa: E501
+                        r"No overload variant of \"range\" matches argument types* (\"None\")",  # noqa: E501
                     ],
                     exceptions,
                 )
@@ -469,6 +471,29 @@ class TypeAddTransformer(ImportVisitingTransformer):
         )
         methods = list(attributes.union(methods))
         if not methods:
+            method_compatibility_interfaces = set(
+                interface
+                for interface, superclasses, _ in (abc_classes + builtin_types)
+                if not any(
+                    map(
+                        method_compatibility_interfaces.__contains__,
+                        superclasses,
+                    )
+                )
+                and interface in method_compatibility_interfaces
+            ).union(
+                filterfalse(
+                    frozenset(
+                        chain.from_iterable(
+                            (interface, *superclasses)
+                            for interface, superclasses, _ in (
+                                abc_classes + builtin_types
+                            )
+                        )
+                    ).__contains__,
+                    method_compatibility_interfaces,
+                )
+            )
             return (
                 f"Union[{', '.join(method_compatibility_interfaces)}]"
                 if method_compatibility_interfaces
@@ -522,39 +547,56 @@ class TypeAddTransformer(ImportVisitingTransformer):
             ).union(matching_iterfaces)
         )
 
-        def is_signature_correct(interface: str, updated_code: str) -> bool:
-            new_exceptions = set(
-                get_mypy_exceptions(
-                    self.temp_python_file,
-                    updated_code,
-                )
-            ).difference(previous_exceptions)
+        def is_signature_correct(interface: str, exceptions: set[str]) -> bool:
+            new_exceptions = set(exceptions).difference(previous_exceptions)
             return not any(
                 re.search(
                     rf"No overload variant of \"[^\"]+\" of \"{interface}\" matches argument",  # noqa: E501
                     exception,
                 )
                 or re.search(r" has incompatible type ", exception)
-                or re.search(r" Unsupported operand types for ", exception)
+                or (
+                    re.search(r" Unsupported operand types for ", exception)
+                    and not re.search(
+                        r"Unsupported operand types for [%\+\*-/]+ "
+                        rf"\(\"{interface}\" and \"Literal\['\w+'\]\"",
+                        exception,
+                    )
+                )
                 or re.search(r" is not indexable ", exception)
                 for exception in new_exceptions
             )
 
         def is_interface_valid(interface: str) -> bool:
-            return is_signature_correct(
-                interface,
+            exceptions = get_mypy_exceptions(
+                self.temp_python_file,
                 self.updated_code.replace(
                     f"Literal['{class_name}']", interface
                 ),
             )
+            return is_signature_correct(
+                interface,
+                exceptions,
+            )
 
         def is_external_lib_valid(element: ExternalLibElement) -> bool:
+            exceptions = get_mypy_exceptions(
+                self.temp_python_file,
+                self.new_protocols_code(
+                    f"from {element.module_name} import {element.item_name}\n"
+                    + self.updated_code.replace(
+                        f"Literal['{class_name}']", element.item_name
+                    )
+                ),
+            )
+            exceptions = set(
+                f"{str(int(line.split(":", 1)[0]) - 1)}:"
+                f"{line.split(":", 1)[-1]}"
+                for line in exceptions
+            )
             return is_signature_correct(
                 element.item_name,
-                f"from {element.module_name} import {element.item_name}\n"
-                + self.updated_code.replace(
-                    f"Literal['{class_name}']", element.item_name
-                ),
+                exceptions,
             )
 
         def add_subtypes(interface: str) -> str:
@@ -664,7 +706,7 @@ class TypeAddTransformer(ImportVisitingTransformer):
         ]
         if (
             not valid_iterfaces and not valid_external_lib_entries
-        ) or not self.config.protocols_optional_on_builtin:
+        ) or self.config.add_protocols_on_builtin:
             protocol = self._create_protocol(class_name, methods)
             rest = self.updated_code.partition(import_statement)[-1]
             self.updated_code = "\n".join(
